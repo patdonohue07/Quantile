@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantitative Signal Sheet</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#000;--s1:#040406;--s2:#08080c;
+--g:#00ff88;--gd:#00d070;--gi:#001a0e;
+--r:#ff2e4a;--rd:#cc2040;
+--y:#e8c020;--b:#4898ff;--brn:#a0714a;--silv:#9898a0;--gold:#c8a040;
+--purp:#b070ff;--teal:#00c8b0;
+--txt:#60ee90;--mid:#18503a;--dim:#0a2414;--brd:#0c0c12;
+--m:'IBM Plex Mono',monospace;--h:'Syne',sans-serif}
+body{font-family:var(--m);background:var(--bg);color:var(--txt);min-height:100vh;font-size:11px;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(0,255,136,.015) 0%,transparent 60%);pointer-events:none;z-index:0}
+.W{max-width:520px;margin:0 auto;padding:0 0 60px;position:relative;z-index:1}
+
+.H{padding:20px 24px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:80;background:rgba(0,0,0,.94);backdrop-filter:blur(16px);border-bottom:1px solid #0a0a10}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g),0 0 22px rgba(0,255,136,.2);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.08;transform:scale(.5)}}
+.H h1{font-family:var(--h);font-size:12px;font-weight:800;letter-spacing:.24em;color:var(--g);text-transform:uppercase;flex:1;text-shadow:0 0 20px rgba(0,255,136,.15)}
+#ck{font-size:8px;color:#12301e;letter-spacing:.04em;font-weight:500}
+
+.T{display:flex;border-bottom:1px solid #0a0a10;position:relative}
+.T::after{content:'';position:absolute;bottom:0;height:1.5px;background:var(--g);box-shadow:0 0 8px var(--g);transition:left .25s cubic-bezier(.4,0,.2,1),width .25s cubic-bezier(.4,0,.2,1);left:var(--tl,0%);width:var(--tw,25%);z-index:2}
+.tb{flex:1;padding:14px 0 12px;text-align:center;font-size:7.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#12281a;cursor:pointer;background:0 0;border:none;font-family:var(--m);transition:.15s;position:relative}
+.tb:active{transform:scale(.97)}
+.tb.on{color:var(--g);text-shadow:0 0 12px rgba(0,255,136,.2)}
+.tb:hover:not(.on){color:var(--mid)}
+
+.P{display:none;padding:22px 24px 8px;animation:fi .2s ease}.P.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.G{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#08080e;border:1px solid #0a0a12;margin-bottom:16px;border-radius:3px;overflow:hidden}
+.F{background:var(--s1);padding:12px 14px;transition:background .15s}
+.F:focus-within{background:#06060a}
+.Fl{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.Ft{font-size:8px;font-weight:600;padding:2.5px 9px;border:1px solid;letter-spacing:.03em;border-radius:2px;transition:box-shadow .2s}
+.F:focus-within .Ft{box-shadow:0 0 8px currentColor}
+.Fx{font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:#1a1a24}
+.F input{width:100%;background:0 0;border:0;border-bottom:1.5px solid #0e0e16;font-family:var(--m);font-size:21px;font-weight:500;padding:4px 0 6px;outline:0;-moz-appearance:textfield;transition:.15s;letter-spacing:-.02em}
+.F input::-webkit-inner-spin-button{-webkit-appearance:none}
+.F input:focus{border-bottom-color:var(--g)}
+.F input::placeholder{color:#080c0a;font-size:14px;font-weight:400}
+
+.M{display:flex;gap:1px;background:#08080e;border:1px solid #0a0a12;margin-bottom:16px;border-radius:3px;overflow:hidden}
+.Mc{flex:1;background:var(--s1);padding:9px 4px;text-align:center}
+.Ml{font-size:5.5px;letter-spacing:.13em;text-transform:uppercase;color:#10201a;margin-bottom:4px;white-space:nowrap}
+.Mv{font-size:11px;font-weight:600;color:#142e20;transition:.2s}
+.Mv.u{color:var(--g);text-shadow:0 0 6px rgba(0,255,136,.15)}
+.Mv.d{color:var(--r);text-shadow:0 0 6px rgba(255,46,74,.15)}
+.Mv.th{color:#182e22;font-size:9px}
+
+.V{padding:18px 20px;border:1px solid #0a0a12;position:relative;overflow:hidden;transition:all .3s cubic-bezier(.4,0,.2,1);background:var(--s1);margin-bottom:16px;border-radius:3px}
+.V::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#08080e;transition:.3s}
+.V::after{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;pointer-events:none}
+.V.up{border-color:var(--gd)}.V.up::before{background:var(--g);box-shadow:0 0 16px var(--g)}.V.up::after{background:radial-gradient(ellipse at 0% 50%,rgba(0,255,136,.04),transparent 50%);opacity:1}
+.V.dn{border-color:var(--rd)}.V.dn::before{background:var(--r);box-shadow:0 0 16px var(--r)}.V.dn::after{background:radial-gradient(ellipse at 0% 50%,rgba(255,46,74,.04),transparent 50%);opacity:1}
+.Vs{font-family:var(--h);font-size:18px;font-weight:800;letter-spacing:.01em;position:relative;z-index:1}
+.V.up .Vs{color:var(--g);text-shadow:0 0 24px rgba(0,255,136,.2)}
+.V.dn .Vs{color:var(--r);text-shadow:0 0 24px rgba(255,46,74,.2)}
+.V.wt .Vs{color:#12281e}
+.Vd{font-size:7.5px;margin-top:6px;color:#142e20;line-height:1.7;position:relative;z-index:1}
+.V.up .Vd{color:var(--gd)}.V.dn .Vd{color:#a03048}
+.pill{display:inline-block;font-size:6.5px;font-weight:600;padding:2px 8px;margin-left:8px;letter-spacing:.1em;border-radius:2px;vertical-align:middle}
+.pill.u{background:rgba(0,255,136,.08);color:var(--g);border:1px solid rgba(0,255,136,.15)}
+.pill.d{background:rgba(255,46,74,.08);color:var(--r);border:1px solid rgba(255,46,74,.15)}
+
+.LB{display:block;width:100%;padding:10px;background:0 0;border:1px solid #0c0c14;color:var(--g);font-family:var(--m);font-size:7px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;cursor:pointer;transition:.15s;margin-bottom:16px;border-radius:3px}
+.LB:hover{background:rgba(0,255,136,.03);border-color:var(--gd);box-shadow:0 0 16px rgba(0,255,136,.04)}
+.LB:active{transform:scale(.98)}
+
+.Lh{font-size:6.5px;letter-spacing:.2em;text-transform:uppercase;color:#0a1e12;margin-bottom:8px}
+.Lw{min-height:24px;margin-bottom:8px}
+.Le{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #06060a;animation:si .15s ease}
+@keyframes si{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.Ld{font-size:7.5px;color:#142e20;width:38px;flex-shrink:0;font-weight:500}
+.Lg{font-size:6.5px;padding:2px 7px;border:1px solid;font-weight:600;letter-spacing:.05em;border-radius:2px}
+.Lg.u{color:var(--g);border-color:rgba(0,255,136,.15);background:rgba(0,255,136,.04)}
+.Lg.d{color:var(--r);border-color:rgba(255,46,74,.15);background:rgba(255,46,74,.04)}
+.Lp{flex:1;font-size:8.5px;color:var(--txt);font-weight:500}
+.Ls{font-size:7.5px;color:#0e2418;margin-top:4px;padding-top:4px;border-top:1px solid #08080e}
+.empty{font-size:7.5px;color:#0a1810;text-align:center;padding:10px 0}
+.ft{padding:16px 24px;font-size:7px;color:#081410;letter-spacing:.08em;text-align:center;border-top:1px solid #060608}
+.ft em{font-style:normal;color:var(--gd)}
+</style>
+</head>
+<body>
+<div class="W">
+<div class="H"><div class="dot"></div><h1>Quantitative Signal Sheet</h1><span id="ck"></span></div>
+<div class="T" id="tabs">
+<button class="tb on" onclick="sw(0)">BAC / JPM</button>
+<button class="tb" onclick="sw(1)">MA / V</button>
+<button class="tb" onclick="sw(2)">PEP / KO</button>
+<button class="tb" onclick="sw(3)">SLV / GLD</button>
+</div>
+<div class="P on" id="pn0">
+<div class="G">
+<div class="F"><div class="Fl"><span class="Ft" style="color:#ffffff;border-color:#ffffff35">BAC</span><span class="Fx">Prev Close</span></div><input id="i0a" type="number" step="0.01" placeholder="0.00" style="color:#ffffff;caret-color:#ffffff" oninput="go(0)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#ffffff;border-color:#ffffff35">BAC</span><span class="Fx">Today Open</span></div><input id="i0b" type="number" step="0.01" placeholder="0.00" style="color:#ffffff;caret-color:#ffffff" oninput="go(0)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#a0714a;border-color:#a0714a35">JPM</span><span class="Fx">Prev Close</span></div><input id="i0c" type="number" step="0.01" placeholder="0.00" style="color:#a0714a;caret-color:#a0714a" oninput="go(0)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#a0714a;border-color:#a0714a35">JPM</span><span class="Fx">Today Open</span></div><input id="i0d" type="number" step="0.01" placeholder="0.00" style="color:#a0714a;caret-color:#a0714a" oninput="go(0)"></div>
+</div>
+<div class="M">
+<div class="Mc"><div class="Ml">ON BAC</div><div class="Mv" id="m0a">--</div></div>
+<div class="Mc"><div class="Ml">ON JPM</div><div class="Mv" id="m0b">--</div></div>
+<div class="Mc"><div class="Ml">Shock</div><div class="Mv" id="m0c">--</div></div>
+<div class="Mc"><div class="Ml">Pctile</div><div class="Mv" id="m0d">--</div></div>
+<div class="Mc"><div class="Ml">Threshold</div><div class="Mv th">60 / 40</div></div>
+</div>
+<div class="V wt" id="v0"><div class="Vs" id="s0">Enter prices</div><div class="Vd" id="d0">&nbsp;</div></div>
+<button class="LB" onclick="log(0)">+ Log Trade</button>
+<div class="Lh">Session Log</div>
+<div class="Lw" id="lw0"><div class="empty">No trades logged</div></div>
+</div>
+<div class="P" id="pn1">
+<div class="G">
+<div class="F"><div class="Fl"><span class="Ft" style="color:#b070ff;border-color:#b070ff35">V</span><span class="Fx">Prev Close</span></div><input id="i1a" type="number" step="0.01" placeholder="0.00" style="color:#b070ff;caret-color:#b070ff" oninput="go(1)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#b070ff;border-color:#b070ff35">V</span><span class="Fx">Today Open</span></div><input id="i1b" type="number" step="0.01" placeholder="0.00" style="color:#b070ff;caret-color:#b070ff" oninput="go(1)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#00c8b0;border-color:#00c8b035">MA</span><span class="Fx">Prev Close</span></div><input id="i1c" type="number" step="0.01" placeholder="0.00" style="color:#00c8b0;caret-color:#00c8b0" oninput="go(1)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#00c8b0;border-color:#00c8b035">MA</span><span class="Fx">Today Open</span></div><input id="i1d" type="number" step="0.01" placeholder="0.00" style="color:#00c8b0;caret-color:#00c8b0" oninput="go(1)"></div>
+</div>
+<div class="M">
+<div class="Mc"><div class="Ml">ON V</div><div class="Mv" id="m1a">--</div></div>
+<div class="Mc"><div class="Ml">ON MA</div><div class="Mv" id="m1b">--</div></div>
+<div class="Mc"><div class="Ml">Shock</div><div class="Mv" id="m1c">--</div></div>
+<div class="Mc"><div class="Ml">Pctile</div><div class="Mv" id="m1d">--</div></div>
+<div class="Mc"><div class="Ml">Threshold</div><div class="Mv th">70 / 30</div></div>
+</div>
+<div class="V wt" id="v1"><div class="Vs" id="s1">Enter prices</div><div class="Vd" id="d1">&nbsp;</div></div>
+<button class="LB" onclick="log(1)">+ Log Trade</button>
+<div class="Lh">Session Log</div>
+<div class="Lw" id="lw1"><div class="empty">No trades logged</div></div>
+</div>
+<div class="P" id="pn2">
+<div class="G">
+<div class="F"><div class="Fl"><span class="Ft" style="color:#4898ff;border-color:#4898ff35">PEP</span><span class="Fx">Prev Close</span></div><input id="i2a" type="number" step="0.01" placeholder="0.00" style="color:#4898ff;caret-color:#4898ff" oninput="go(2)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#4898ff;border-color:#4898ff35">PEP</span><span class="Fx">Today Open</span></div><input id="i2b" type="number" step="0.01" placeholder="0.00" style="color:#4898ff;caret-color:#4898ff" oninput="go(2)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#ff2e4a;border-color:#ff2e4a35">KO</span><span class="Fx">Prev Close</span></div><input id="i2c" type="number" step="0.01" placeholder="0.00" style="color:#ff2e4a;caret-color:#ff2e4a" oninput="go(2)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#ff2e4a;border-color:#ff2e4a35">KO</span><span class="Fx">Today Open</span></div><input id="i2d" type="number" step="0.01" placeholder="0.00" style="color:#ff2e4a;caret-color:#ff2e4a" oninput="go(2)"></div>
+</div>
+<div class="M">
+<div class="Mc"><div class="Ml">ON PEP</div><div class="Mv" id="m2a">--</div></div>
+<div class="Mc"><div class="Ml">ON KO</div><div class="Mv" id="m2b">--</div></div>
+<div class="Mc"><div class="Ml">Shock</div><div class="Mv" id="m2c">--</div></div>
+<div class="Mc"><div class="Ml">Pctile</div><div class="Mv" id="m2d">--</div></div>
+<div class="Mc"><div class="Ml">Threshold</div><div class="Mv th">85 / 15</div></div>
+</div>
+<div class="V wt" id="v2"><div class="Vs" id="s2">Enter prices</div><div class="Vd" id="d2">&nbsp;</div></div>
+<button class="LB" onclick="log(2)">+ Log Trade</button>
+<div class="Lh">Session Log</div>
+<div class="Lw" id="lw2"><div class="empty">No trades logged</div></div>
+</div>
+<div class="P" id="pn3">
+<div class="G">
+<div class="F"><div class="Fl"><span class="Ft" style="color:#9898a0;border-color:#9898a035">SLV</span><span class="Fx">Prev Close</span></div><input id="i3a" type="number" step="0.01" placeholder="0.00" style="color:#9898a0;caret-color:#9898a0" oninput="go(3)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#9898a0;border-color:#9898a035">SLV</span><span class="Fx">Today Open</span></div><input id="i3b" type="number" step="0.01" placeholder="0.00" style="color:#9898a0;caret-color:#9898a0" oninput="go(3)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#c8a040;border-color:#c8a04035">GLD</span><span class="Fx">Prev Close</span></div><input id="i3c" type="number" step="0.01" placeholder="0.00" style="color:#c8a040;caret-color:#c8a040" oninput="go(3)"></div>
+<div class="F"><div class="Fl"><span class="Ft" style="color:#c8a040;border-color:#c8a04035">GLD</span><span class="Fx">Today Open</span></div><input id="i3d" type="number" step="0.01" placeholder="0.00" style="color:#c8a040;caret-color:#c8a040" oninput="go(3)"></div>
+</div>
+<div class="M">
+<div class="Mc"><div class="Ml">ON SLV</div><div class="Mv" id="m3a">--</div></div>
+<div class="Mc"><div class="Ml">ON GLD</div><div class="Mv" id="m3b">--</div></div>
+<div class="Mc"><div class="Ml">Shock</div><div class="Mv" id="m3c">--</div></div>
+<div class="Mc"><div class="Ml">Pctile</div><div class="Mv" id="m3d">--</div></div>
+<div class="Mc"><div class="Ml">Threshold</div><div class="Mv th">95 / 5</div></div>
+</div>
+<div class="V wt" id="v3"><div class="Vs" id="s3">Enter prices</div><div class="Vd" id="d3">&nbsp;</div></div>
+<button class="LB" onclick="log(3)">+ Log Trade</button>
+<div class="Lh">Session Log</div>
+<div class="Lw" id="lw3"><div class="empty">No trades logged</div></div>
+</div>
+<div class="ft">4-pair intraday · open to close · <em>dollar neutral · zero overlap</em></div>
+</div>
+<script>
+var D=[
+{l:"BAC",t:"JPM",b:0.79948,th:60,lo:40,tw:0,ss:0,vo:0,sk:[-0.00060902,3.533e-05,-0.00052253,-0.00501258,0.00124838,0.01427712,-0.00225705,-0.00438725,0.0005856,0.01799352,0.01779336,-0.00842328,-0.00015051,-0.00144414,-0.00081193,-0.00106807,0.0046409,0.00305432,-0.00021221,-0.0021719,0.00034643,-0.00398076,0.000467,-0.0076729,0.00237154,-2.932e-05,0.00083606,0.0004378,0.00028564,-0.00141256,0.00652884,-0.0006436,-0.00914781,-0.00815396,-0.00026515,-0.00705646,-3.591e-05,-0.00198891,0.00322556,-0.00205696,-0.0020668,0.00487785,0.00237283,-0.00447689,-0.00283905,0.00803091,0.00102905,-0.00122868,-0.00349963,-0.00457241,0.00196633,0.00607872,0.00511424,-0.00154788,-0.00139733,-0.00314164,-0.0030581,0.00209271,-0.00097311,0.00517881,0.00130627,0.00082715,-0.00021641,-0.00727038,-0.024891,0.0048895,0.03828408,-0.00532855,-0.0080597,-0.00392759,-0.01461897,0.01120605,0.0248466,0.00149745,-0.00045314,-0.00325112,0.00425263,0.00810205,0.00257238,-0.00105286,-0.00151825,0.00061539,-0.00130227,0.00602289,0.00014042,8.39e-05,-0.00095047,0.00240341,-0.0002552,-0.00107883,-0.00313278,-0.0024742,-0.00199352,-0.00827658,-0.0009398,-0.00527903,0.00508645,-0.00203961,0.00464234,-0.00389032,0.00845143,-0.00389189,0.0019425,0.00243519,-0.00186013,0.00201565,0.00023121,5.16e-06,0.00355488,0.0020655,0.00176428,0.00213206,-0.00239382,-0.00158682,0.00437545,0.00531339,-0.00118236,-0.00058898,-0.00242541,0.00243372,-0.00260521,-0.0002181,0.01037347,-0.00125606,-0.00983008,-0.00144796,-0.00059183,-0.00125915,-0.01419216,-0.01576218,0.00186182,0.0024886,0.00095758,-0.00153363,-0.00446863,0.00010469,0.00114119,0.00560646,0.0006338,-1.757e-05,0.004953,-0.00052823,0.0033513,-0.00268906,0.0051311,-0.00246609,0.00140884,0.00334542,0.00064707,-6.461e-05,0.00064123,-0.00237413,-0.00125133,-0.00011146,0.00027198,-0.00333342,-0.00151348,0.00136892,0.00041251,0.00134047,-0.00060926,-0.00061611,-0.00181895,-0.00216006,6.58e-06,0.00093117,-0.00274764,-0.00661168,-0.00314296,0.00204714,0.00251625,-0.00103774,0.00180251,0.00523212,-0.00197782,0.00072656,0.00455045,-0.00231325,0.00035448,0.00163214,-0.00069545,0.00466515,0.00329785,-0.00085746,-0.00624866,0.00095524,5.792e-05,-0.00042406,-0.00147473,0.00137159,0.00014372,0.00118791,0.00271115,0.00075593,0.00038171,0.00245222,-0.00175437,0.00545977,0.01689591,0.00710191,0.00826859,0.00031655,0.00299288,-0.00235166,0.00666151,-0.00270743,-0.00048663,-0.00235564,0.00114428,0.00094493,-0.00208252,-0.00323015,-0.00250536,-0.01186275,0.02042128,0.00161825,0.00175767,0.00450176,0.00321921,-0.00259434,0.00545736,-0.00171075,-0.00130355,-0.00039692,0.00015035,-0.00282695,0.00110105,0.00014192,-0.0015448,-0.00183849,-0.00243737,0.00594813,0.00302874,-0.0009086,0.00218141,-0.00098126,0.00197591,0.00096111,-0.00010609,-0.00183876,0.00217912,-0.00105827,-0.00171331,0.00197147,0.0027522,0.00104662,-0.00255066,0.0020914,0.00068008,0.00116422,-9.469e-05,-0.00155055],to:[],tm:[]},
+{l:"V",t:"MA",b:0.647983,th:70,lo:30,tw:0,ss:0,vo:0,sk:[-0.00615841,-4.495e-05,0.00228136,-0.00086102,0.00080227,-0.00269413,-0.00296063,-5.507e-05,-0.00409487,0.00319038,0.00651187,-0.00325114,-0.00099557,-0.00149667,0.00359609,-0.00168036,0.00091299,-0.00071511,0.00169017,0.00048608,0.00348685,0.01247656,-0.00201131,-0.01149043,-0.0001334,0.00115611,0.00046822,-0.00092474,-0.00610059,-0.00136135,0.00348965,-0.00303094,-0.00049983,-0.00071401,0.00039883,0.00212828,-0.00040926,0.00032842,-0.00428162,-0.0013423,-0.00574036,-0.00034746,0.00030048,-0.00106789,-0.00767999,-0.00631846,-0.00536395,-0.0090869,0.0057266,-0.00538521,-0.0075314,5.671e-05,0.00178572,0.00437719,0.00045013,-0.00513825,0.00448051,-0.00071104,0.00162189,-0.00052294,0.00196661,-8.024e-05,0.00150338,-0.00172715,-0.01344592,-0.01431816,-0.02041012,0.01110228,0.00370738,-0.00245436,0.00084707,0.00124861,0.00340604,-0.00074633,0.00234528,-0.00143739,0.00373118,0.00483043,-0.00164616,-0.00282962,0.00170599,0.00311503,-0.01935007,-0.00206202,0.00326004,0.0001042,-0.00106668,0.00255132,0.0025757,0.00121708,0.0057763,0.0010344,-0.00039981,0.00024554,0.00376436,-0.003241,0.00538681,-0.00332007,-0.00050588,-0.00536723,0.00156409,7.741e-05,0.00176855,-0.00177574,-0.00098357,-0.00052055,-0.00012618,0.00301647,0.00337345,0.00035391,0.00057255,-0.00274575,-0.00145615,-0.00857309,0.00816014,-0.00109737,-0.00159918,-0.0020362,-0.00127581,0.00488506,-0.00157755,0.00062909,0.00047845,-0.00044409,-0.00044313,-0.00053086,0.00189856,-0.00146057,0.00073125,0.00109759,-0.00321879,-0.0052149,-0.00192889,-0.00689567,-0.00164735,0.00324861,-0.00047801,-0.00083901,-0.00089935,0.00526949,-0.00121909,-0.0009042,-0.00087927,0.00031149,0.00460652,-0.01660625,-0.00098015,0.00183288,0.00023877,-0.00079879,0.00060241,0.00186658,-0.00091563,-0.00212406,-0.00284218,0.00162077,0.00082342,-0.00218547,-0.00082451,0.0023314,0.00095574,0.00075161,4.83e-06,-0.00023066,-0.00090032,0.00053805,4.7e-05,-0.00738075,-0.00204153,-0.00012583,0.00129608,-0.0007894,0.0015982,-0.00193681,0.00012643,-0.00408802,0.00088613,-0.00278566,-0.00169018,-0.00148579,0.00387087,-0.0040725,-0.00039633,-0.00021992,0.0033661,0.0076439,-0.00096791,0.00165789,0.00043131,-0.00345414,0.00147272,0.00184778,0.00203175,0.00220507,-0.00144274,-0.00177783,-0.00040067,-0.00294556,0.00413036,-0.00198461,0.00399069,-0.00081414,0.00105978,0.0028671,-0.00097008,0.00255609,0.00234795,0.00136977,0.00232902,0.00628303,-0.00294429,0.00309916,-0.0021517,-0.00079259,-0.00059868,-0.00129147,0.00151093,0.00189423,-0.00191494,0.00203083,-0.00111348,0.00313379,0.00013371,0.00035857,-0.00357977,-0.00074756,0.0001965,-0.00561212,-0.0023834,-0.00488381,-0.00108351,-0.00073463,-0.00170403,0.00120482,-0.00010859,-0.00553106,0.0013705,-0.00022218,0.01638929,0.00383194,-0.0010763,-0.0043532,0.00184731,0.0027453,0.00010411,0.00214748,-0.00046946,-0.00101193,-0.00044805,0.00138021,0.00032057,0.00104987],to:[],tm:[]},
+{l:"PEP",t:"KO",b:0.536482,th:85,lo:15,tw:0,ss:0,vo:0,sk:[-0.00086218,0.00058519,0.00487122,0.00464158,0.00111977,-0.00046948,-0.00088563,-0.00974203,0.00069281,-0.00220417,0.00201009,-0.00294548,0.00769032,-0.00059261,-0.00036238,0.00257991,0.00018958,0.00598717,-0.00073786,0.00456369,-0.00056985,-0.00528152,-0.00422818,-0.02926358,-0.00098871,0.00112096,-0.00275543,-0.00310226,-0.0106691,-0.00824997,0.00060303,0.00111303,-0.00228104,0.00033412,-0.00353145,0.00495941,-0.00573116,0.00511643,-0.00463071,-0.00373276,0.00880911,-0.009816,0.00964352,-0.00697069,0.00021988,0.00391472,0.0066625,-0.00507924,-0.02756006,-0.00047864,-0.00451889,0.00382212,-0.00879407,-0.00053204,-0.00390303,-0.00101924,-0.00056781,-0.00204848,0.00244532,0.00536653,0.00470066,0.00391417,0.00328979,0.00317559,0.00937031,0.01537639,-0.00827359,0.00076874,0.00345852,-0.00296596,0.00588999,-0.0009102,-0.00743349,0.00521183,0.00016597,-0.00511565,0.0022164,0.00299062,-0.0036934,0.00027098,0.00270047,-0.00529438,0.00266802,-0.00424761,0.00296393,0.00202315,-0.00053702,0.00160608,0.00120185,-0.0008258,0.00575036,-0.00431405,-0.00124947,0.00176054,0.00268865,0.00092169,0.00062787,-1.2e-07,-0.00092745,-0.00716096,0.00593321,-4.591e-05,0.00251587,0.00089738,-0.00369375,-0.00010608,0.00224823,-0.00416835,0.00315065,-0.00153806,0.00094519,0.00138112,-0.00130625,-0.0043648,0.0022252,-0.00089261,-0.00014958,0.00444828,-0.00139896,-0.00163186,-0.00320599,-0.00313269,-0.00067513,0.00322822,0.00177115,-0.00027021,0.00032918,0.00091262,-0.00448596,-0.00024105,0.00151234,-0.00716213,-0.00308127,-0.00142632,0.00114497,0.04088168,0.00726528,-0.00473018,0.00302132,-0.00123258,6.673e-05,0.00176639,-0.00078256,-0.0026364,0.0019587,-0.00676983,0.00088642,0.00156232,0.00092419,0.00248579,0.00364991,0.00072331,0.00117093,0.00397437,0.00033673,-0.00122368,0.00280254,0.00023636,0.00074718,-0.00111253,-0.00142241,0.00060291,-0.00781989,-0.00618664,-0.00120268,0.00147958,-0.00341705,0.05954117,0.00312955,0.00095415,0.00683873,-0.00327132,-0.00165036,-0.00512021,0.00024516,-0.00083473,-0.00338525,-0.0015714,-0.00133704,-0.00090022,0.00475539,-0.00086346,-0.00195973,0.00371317,0.00146502,-0.00117477,2e-08,-0.00043933,-0.00012642,-0.00480228,-0.00035136,0.00104723,0.00286635,0.00190801,0.00889785,0.00389502,0.00326778,-0.00245007,0.00234738,0.00649522,0.00079226,0.00477358,-0.01360919,-0.00148812,0.00091476,0.00377848,-0.00422303,-0.00789868,-0.01142638,0.00021715,-0.00476846,-0.0005507,0.00242413,-3e-08,-0.00095177,0.00170079,0.0022678,-3.117e-05,-0.00240198,-0.00111959,0.00260042,0.00145846,0.00013382,-0.0029638,-0.00189304,-0.00245953,-0.00503232,0.0013066,0.00151651,-0.00600944,-0.00066062,0.00085718,-0.00113549,-0.00225397,0.00196123,0.0011336,0.00406355,0.01928545,0.00034587,0.0047639,0.00262388,0.00253061,-0.00149323,0.00123045,0.00085698,-0.00323265,0.00102994,0.00053094,-4.82e-06,-0.00128167,-0.00064371,-0.00228918],to:[],tm:[]},
+{l:"SLV",t:"GLD",b:1.491191,th:95,lo:5,tw:1,ss:1,vo:1,vp:1,sk:[-0.00394356,-0.01027994,0.00138598,0.01506267,0.01286174,0.00014221,0.00303652,0.00598949,-0.01055106,0.00334573,0.01075183,-0.00948749,-0.01378315,-0.00434599,-0.00982016,-0.0114546,-0.00507961,-0.00409019,-0.00486409,0.01926594,0.00587118,-0.00411824,-0.00535699,0.00463784,-0.00608505,-0.00114494,-0.00349028,-0.01776015,-0.00811582,0.00816649,-0.00897436,0.02772402,-0.0070525,-0.00524756,0.00881748,0.00329003,-0.00424149,-0.00542779,0.00600327,0.01243611,0.00397221,0.01046661,-0.0009937,0.0131137,-0.00262156,-0.01404371,0.00259069,0.00492804,0.00522393,-0.00643747,0.0003532,-0.01080368,-0.00475791,-0.00502507,-0.00902011,-0.00427634,0.00194965,0.01314686,0.00227981,-0.00201681,-0.005578,-0.02126714,-0.00542546,0.000813,-0.03436107,-0.01897058,0.01226472,-0.00280311,-0.01546598,-0.01349579,-0.00577839,0.00678198,-0.00356668,-0.01213299,-0.00294724,-0.01811949,-0.00629807,0.03083345,-0.0179336,-0.00154601,0.00266512,0.0174729,-0.00104163,0.01036157,0.00051919,-0.00612057,0.00807628,-0.00617678,0.00630752,-0.00020988,0.0163211,-4.982e-05,-0.00229202,-0.00241046,-0.00054408,-0.00474172,0.00293814,-0.0006936,-0.01465202,-0.00822456,0.00012555,-0.00297314,0.00585872,-0.00141425,0.0148794,-0.00523546,-0.00498621,0.04038195,0.01503465,0.01204971,-0.00624971,-0.01112787,-0.01057011,-0.01203092,0.00706921,0.01628945,-0.0020207,-0.01269811,0.00229466,0.00058541,-0.00051205,0.00661152,-0.00817434,0.00037957,-0.00477263,0.00806679,0.0102748,-0.0088015,-0.00059619,-0.00468269,0.00805306,0.00732321,0.0055799,0.00236229,0.00293983,0.00297819,0.00033864,0.00665128,0.00267966,0.0056919,-0.00285812,-0.00046292,0.00186311,-0.00087909,-0.01146545,-0.01436585,0.00066968,0.00646681,0.00204294,0.00296143,0.01192436,0.00225875,-0.00568483,0.0024953,0.0117037,-0.00752629,-0.0048136,0.00394583,-0.00195132,0.00559016,0.00240557,-0.00285716,-0.00590547,-0.00492988,-0.00697885,0.0108204,-0.00418571,0.00631612,0.0001987,-0.00144257,0.0070116,0.00406818,-0.00677556,0.00095208,0.00300117,0.00941097,-0.00295148,0.00373072,-0.01227178,0.00318047,0.00500815,0.00339669,-0.00050918,0.0037081,0.0136078,0.0023495,0.00253404,-0.01359392,0.01396817,0.0099282,0.01294188,2.364e-05,-0.00716651,0.01070527,0.03641571,0.01221422,0.01479768,-0.02716942,0.00736199,-0.01384816,-0.0160816,-0.00374513,-0.01008185,0.01151415,0.00719007,-0.00146761,-0.0047012,0.0140481,0.01113847,0.00408927,0.00214938,0.00308524,-0.00054956,0.00504799,-0.00177463,0.00501092,0.00452069,0.00583662,0.01338929,-0.00447239,-0.00434829,0.00267363,-0.00114369,0.00450534,-0.00511707,-0.01663138,0.00049568,-0.00190282,0.01065276,0.01722239,0.00669218,0.00863996,-0.00645758,-0.01501192,0.01212547,-0.00299594,0.01224467,0.00399615,0.01258149,-0.00307112,0.02360972,-0.01480155,0.01965938,-0.00408109,0.00999081,0.00219427,0.01295264,0.00793749,0.0258108,-0.03159034,0.02848409,-0.04878541],to:[0.15,0.15,0.15,0.2,0.2,0.25,0.25,0.25,0.25,0.25,0.25,0.2,0.2,0.2,0.2,0.2,0.25,0.25,0.25,0.3,0.3,0.35,0.35,0.3,0.35,0.3,0.3,0.25,0.25,0.25,0.25,0.3,0.3,0.3,0.35,0.4,0.35,0.35,0.35,0.3,0.3,0.3,0.35,0.35,0.3,0.3,0.25,0.25,0.25,0.25,0.3,0.25,0.3,0.3,0.25,0.2,0.25,0.25,0.3,0.3,0.35,0.3,0.25,0.25,0.25,0.25,0.3,0.35,0.35,0.35,0.3,0.3,0.25,0.3,0.3,0.35,0.3,0.3,0.25,0.25,0.2,0.25,0.25,0.25,0.3,0.35,0.3,0.25,0.3,0.3,0.3,0.3,0.3,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.2,0.2,0.2,0.15,0.1,0.1,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.2,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.2,0.2,0.2,0.15,0.1,0.1,0.1,0.1,0.15,0.2,0.15,0.15,0.2,0.2,0.2,0.25,0.25,0.25,0.25,0.25,0.2,0.2,0.25,0.25,0.25,0.3,0.35,0.35,0.3,0.25,0.25,0.25,0.2,0.25,0.25,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.15,0.15,0.15,0.1,0.1,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.2,0.25,0.25,0.25,0.25,0.25,0.3,0.35,0.3,0.25,0.25,0.25,0.3,0.35,0.35,0.3,0.3,0.3,0.3,0.35,0.3,0.25,0.3,0.3,0.3,0.3,0.3,0.25,0.3,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.3,0.3,0.35,0.3,0.3,0.3,0.3,0.25,0.25,0.2,0.15,0.15,0.15,0.1,0.05,0.05,0.05,0.05,0.1,0.1,0.1,0.1,0.05,0.05,0.1,0.1,0.1,0.1,0.1,0.15,0.15],tm:[0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.275,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.275,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.275,0.275,0.275,0.25,0.25,0.275,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.275,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25]}
+];
+var S=[{},{},{},{}],L=[[],[],[],[]];
+function $(x){return document.getElementById(x)}
+function gv(x){var v=parseFloat($(x).value);return isNaN(v)?null:v}
+function fp(x){return(x>=0?'+':'')+((x*100).toFixed(3))+'%'}
+function pr(a,v){var c=0;for(var i=0;i<a.length;i++)if(a[i]<=v)c++;return c/a.length*100}
+function med(a){if(!a.length)return 0;var s=a.slice().sort(function(x,y){return x-y});var n=s.length;return n%2?s[n>>1]:(s[(n>>1)-1]+s[n>>1])/2}
+
+(function tick(){var n=new Date(),dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+z=function(x){return('0'+x).slice(-2)};
+$('ck').textContent=dn[n.getDay()]+' '+z(n.getMonth()+1)+'/'+z(n.getDate())+' '+z(n.getHours())+':'+z(n.getMinutes());
+setTimeout(tick,15000)})();
+
+function sw(i){
+document.querySelectorAll('.tb').forEach(function(t,j){t.className='tb'+(j===i?' on':'')});
+document.querySelectorAll('.P').forEach(function(p,j){p.className='P'+(j===i?' on':'')});
+var tabs=document.querySelectorAll('.tb'),el=tabs[i],r=el.getBoundingClientRect(),pr=el.parentElement.getBoundingClientRect();
+var s=document.querySelector('.T').style;
+s.setProperty('--tl',(r.left-pr.left+r.width*.12)+'px');
+s.setProperty('--tw',(r.width*.76)+'px');}
+(function(){sw(0)})();
+
+function go(p){
+var d=D[p],lpc=gv('i'+p+'a'),lop=gv('i'+p+'b'),tpc=gv('i'+p+'c'),tp=gv('i'+p+'d');
+var v=$('v'+p),sg=$('s'+p),sd=$('d'+p);
+var ma=$('m'+p+'a'),mb=$('m'+p+'b'),mc=$('m'+p+'c'),md=$('m'+p+'d');
+[ma,mb,mc,md].forEach(function(e){e.textContent='--';e.className='Mv'});
+v.className='V wt';sg.textContent='Enter prices';sd.innerHTML='&nbsp;';S[p]={};
+if(!lpc||!lop||!tpc||!tp)return;
+var ol=lop/lpc-1,ot=tp/tpc-1,sh=ol-d.b*ot,sp=pr(d.sk,sh);
+ma.textContent=fp(ol);ma.className='Mv '+(ol>0?'u':'d');
+mb.textContent=fp(ot);mb.className='Mv '+(ot>0?'u':'d');
+mc.textContent=fp(sh);mc.className='Mv '+(sp>=d.th||sp<=d.lo?'u':'');
+md.textContent=sp.toFixed(1)+'%';md.className='Mv '+(sp>=d.th?'u':sp<=d.lo?'d':'');
+var dir='X';if(sp>=d.th)dir='UP';else if(sp<=d.lo)dir='DN';
+var ok=dir!=='X';
+if(ok&&d.tw&&d.to.length){var tc=d.to[d.to.length-1],tm=med(d.to);if(tc<tm)ok=false;}
+if(ok&&d.vo&&!d.vp)ok=false;
+if(ok&&d.ss&&!((ol>0&&ot>0)||(ol<0&&ot<0)))ok=false;
+S[p]={dir:ok?dir:null};
+if(ok){v.className='V '+(dir==='UP'?'up':'dn');
+var act=dir==='UP'?'SHORT '+d.l+' / LONG '+d.t:'LONG '+d.l+' / SHORT '+d.t;
+sg.innerHTML=act+'<span class="pill '+(dir==='UP'?'u':'d')+'">'+(dir==='UP'?'\u25b2 UP':'\u25bc DN')+'</span>';
+sd.textContent='Shock '+sp.toFixed(1)+'th \u00b7 Beta '+d.b.toFixed(4)+' \u00b7 Enter open \u00b7 Exit close';
+}else{v.className='V wt';sg.textContent='No trade';
+var r=[];if(dir==='X')r.push('Shock '+sp.toFixed(0)+'th \u2014 need \u2265'+d.th+' or \u2264'+d.lo);
+if(d.tw&&d.to.length){var tc2=d.to[d.to.length-1],tm2=med(d.to);if(tc2<tm2)r.push('TOW below median');}
+if(d.ss&&!((ol>0&&ot>0)||(ol<0&&ot<0)))r.push('Gaps diverge');
+if(d.vo&&!d.vp)r.push('Volume filter fail');
+sd.textContent=r.join(' \u00b7 ')||'Conditions not met';}}
+
+function log(p){var s=S[p];if(!s||!s.dir){alert('No active signal to log.');return;}
+var d=D[p],n=new Date();
+var ts=(n.getMonth()+1)+'/'+n.getDate()+' '+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2);
+L[p].unshift({ts:ts,dir:s.dir,pair:d.l+'/'+d.t});
+var el=$('lw'+p),h='';
+for(var i=0;i<Math.min(L[p].length,12);i++){var t=L[p][i];
+h+='<div class="Le"><span class="Ld">'+t.ts+'</span><span class="Lg '+(t.dir==='UP'?'u':'d')+'">'+t.dir+'</span><span class="Lp">'+t.pair+'</span></div>';}
+h+='<div class="Ls">'+L[p].length+' trade'+(L[p].length>1?'s':'')+'</div>';
+el.innerHTML=h;}
+</script>
+</body>
+</html>
