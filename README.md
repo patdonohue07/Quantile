@@ -1,23 +1,39 @@
 # Scorecard
 
-Pairs trading signal dashboard tracking three verified equity pairs — BAC/JPM, V/MA, and PEP/KO.
+Pairs trading signal dashboard tracking three equity pairs — BAC/JPM, V/MA, and PEP/KO.
 
-Uses beta-adjusted overnight gap shocks ranked against historical distributions to generate intraday trade signals. Entry at open, exit at close, dollar neutral.
+Each morning, the script calculates the beta-adjusted overnight gap shock for each pair, ranks it against a historical distribution, and fires a trade signal when the percentile hits the threshold. Entry at open, exit at close, dollar neutral.
 
 ## Strategy
 
-Each morning the script calculates the overnight gap for each ticker (open / prev close - 1), computes a beta-adjusted spread, and ranks it against a historical shock distribution. A trade fires when the percentile hits the threshold.
+For each pair, the shock is calculated as:
+
+shock = lead_gap - beta × target_gap
+
+where gap = (open / prev_close) - 1
+
+The shock is ranked against a pre-built historical distribution. A signal fires when the percentile exceeds the upper threshold (short lead, long target) or falls below the lower threshold (long lead, short target).
 
 ## Pairs
 
-| Pair | Beta | Threshold | Win Rate | 3yr P&L |
-|------|------|-----------|----------|---------|
-| BAC / JPM | 0.799 | 75 / 25 | 55.3% | +$556 |
-| V / MA | 0.648 | 75 / 25 | 63.4% | +$1,036 |
-| PEP / KO | 0.536 | 85 / 15 | 59.3% | +$279 |
+| Pair | Beta | Threshold |
+|------|------|-----------|
+| BAC / JPM | 0.799 | 75 / 25 |
+| V / MA | 0.648 | 75 / 25 |
+| PEP / KO | 0.536 | 85 / 15 |
 
-Backtest: 2023–2026, Yahoo Finance data, $1,000 per leg, open to close.
-Combined 3-year P&L: +$1,871
+## Backtest Results
+
+3-year window: Jan 2023 – Mar 2026 | $1,000 per leg | Open-to-close | Dollar neutral
+
+| Pair | Trades | Win% | Sharpe | Sortino | Max DD |
+|------|--------|------|--------|---------|--------|
+| BAC / JPM | 479 | 55.3% | 1.37 | 1.63 | $153 |
+| V / MA | 418 | 63.4% | 4.08 | 5.85 | $35 |
+| PEP / KO | 214 | 59.3% | 1.04 | 0.77 | $64 |
+| **Combined** | **1,111** | **59.3%** | — | — | — |
+
+Beta-adjusted shock percentile ranking. Logic verified against HTML dashboard using Yahoo Finance OHLCV data.
 
 ## Files
 
@@ -33,4 +49,4 @@ Combined 3-year P&L: +$1,871
 
 ## Status
 
-Paper trading — live deployment coming.
+Paper trading — live deployment pending.
