@@ -4,6 +4,8 @@ Pairs trading signal dashboard tracking three equity pairs — BAC/JPM, V/MA, an
 
 Each morning, the script calculates the beta-adjusted overnight gap shock for each pair, ranks it against a historical distribution, and fires a trade signal when the percentile hits the threshold. Entry at open, exit at close, dollar neutral.
 
+> ⚠️ This project is for research and educational purposes only. It is not financial advice and should not be used to make real trading decisions.
+
 ## Strategy
 
 For each pair, the shock is calculated as:
@@ -34,6 +36,25 @@ The shock is ranked against a pre-built historical distribution. A signal fires 
 | **Combined** | **1,111** | **59.3%** | **3.28** | **4.76** | **$108** |
 
 Beta-adjusted shock percentile ranking. Logic verified against HTML dashboard using Yahoo Finance OHLCV data.
+
+## How to Run
+
+**Signal Dashboard (manual)**
+Open `scorecard_v6.html` in any browser. Enter prev close and today's open for each pair at market open to generate signals.
+
+**Automated Deployment (paper trading)**
+
+Install dependencies:
+pip install alpaca-py
+
+Set your Alpaca paper trading keys:
+export ALPACA_API_KEY="your_key"
+export ALPACA_SECRET_KEY="your_secret"
+
+Run at 9:30 AM ET each trading day:
+python scorecard_deploy_v6.py
+
+Positions close automatically at the end of the day.
 
 ## Files
 
