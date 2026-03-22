@@ -292,24 +292,6 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-
-# ── USAGE ──────────────────────────────────────────────────────────────────────
-#
-# 1. Install:
-#      pip install alpaca-py
-#
-# 2. Get free paper trading keys at alpaca.markets (no deposit needed)
-#
-# 3. Set environment variables:
-#      export ALPACA_API_KEY="your_key"
-#      export ALPACA_SECRET_KEY="your_secret"
-#
-# 4. Run at 9:30 AM ET each trading day:
-#      python scorecard_deploy.py
-#
-# 5. Positions auto-close at end of day (TimeInForce.DAY).
-#    Or call close_all_positions() explicitly at 4 PM.
 #
 # 6. To automate scheduling, add a cron job:
 #      30 9 * * 1-5 /usr/bin/python3 /path/to/scorecard_deploy.py
