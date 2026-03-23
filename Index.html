@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quantile — Pairs Trading Signals</title>
+  <meta name="description" content="Beta-adjusted overnight gap signals for equity pairs. 59.3% win rate across 1,111 backtested trades."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:      #000000;
+      --surface: #0a0a0a;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #0EA5E9;
+      --ad:      rgba(14,165,233,0.1);
+      --ab:      rgba(14,165,233,0.22);
+      --white:   #ffffff;
+      --dim:     rgba(255,255,255,0.45);
+      --dimmer:  rgba(255,255,255,0.22);
+      --dimmest: rgba(255,255,255,0.07);
+      --green:   #22C55E;
+      --red:     #EF4444;
+      --font:    'Geist', -apple-system, sans-serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── WEBGL CANVAS ── */
+    #shader-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      opacity: 0.35;
+    }
+
+    /* ── CONTENT LAYER ── */
+    .content { position: relative; z-index: 1; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 48px;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+
+    .nav-wordmark {
+      font-size: 17px; font-weight: 700;
+      letter-spacing: -0.03em; color: var(--white);
+      line-height: 1;
+    }
+
+    .nav-wordmark small {
+      display: block; font-size: 8px;
+      color: var(--dimmer); letter-spacing: 0.16em;
+      font-weight: 500; margin-top: 2px;
+    }
+
+    /* Gradient button from 21st.dev */
+    .gradient-btn {
+      position: relative;
+      display: inline-flex; align-items: center;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 13px; font-weight: 600;
+      color: var(--white);
+      text-decoration: none;
+      cursor: pointer;
+      background: radial-gradient(
+        150% 180% at 11.14% 140%,
+        #000 37.35%,
+        #08012c 61.36%,
+        #4e1e40 78.42%,
+        #70464e 89.52%,
+        #88394c 100%
+      );
+      transition:
+        --pos-x 0.5s, --pos-y 0.5s,
+        --spread-x 0.5s, --spread-y 0.5s,
+        --color-1 0.5s, --color-2 0.5s,
+        --color-3 0.5s, --color-4 0.5s,
+        --color-5 0.5s;
+      letter-spacing: 0.01em;
+    }
+
+    .gradient-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(20deg, hsla(340,75%,60%,0.2), hsla(340,75%,40%,0.75));
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .gradient-btn:hover {
+      background: radial-gradient(
+        120.24% 103.18% at 0% 91.51%,
+        #c96287 0%,
+        #c66c64 8.8%,
+        #cc7d23 21.44%,
+        #37140a 71.34%,
+        #000 85.76%
+      );
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      text-align: center;
+      padding: 140px 40px 80px;
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: 40%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px; height: 500px;
+      background: radial-gradient(ellipse, rgba(14,165,233,0.06) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hero-inner { position: relative; z-index: 1; }
+
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--ad);
+      border: 1px solid var(--ab);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.14em; color: var(--accent);
+      margin-bottom: 28px;
+      animation: fadeUp 0.7s ease both;
+    }
+
+    .hero-tag-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .hero-h1 {
+      font-size: clamp(48px, 8vw, 92px);
+      font-weight: 900; line-height: 0.95;
+      letter-spacing: -0.05em;
+      margin-bottom: 28px;
+      animation: fadeUp 0.7s ease 0.08s both;
+    }
+
+    .hero-h1 .line2 {
+      display: block;
+      background: linear-gradient(135deg, var(--accent) 0%, rgba(14,165,233,0.6) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 1.8vw, 18px);
+      color: var(--dim); line-height: 1.65;
+      max-width: 480px; margin: 0 auto 44px;
+      font-weight: 400;
+      animation: fadeUp 0.7s ease 0.14s both;
+    }
+
+    .hero-btns {
+      display: flex; gap: 10px;
+      justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.7s ease 0.2s both;
+    }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center;
+      padding: 10px 22px; border-radius: 10px;
+      font-family: var(--font);
+      font-size: 13px; font-weight: 600;
+      color: var(--dim); text-decoration: none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      letter-spacing: 0.01em;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .btn-ghost:hover {
+      border-color: rgba(255,255,255,0.18);
+      color: var(--white);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── SIGNAL SVG ── */
+    .hero-signal {
+      margin-bottom: 52px;
+      animation: fadeUp 0.7s ease both;
+    }
+
+    @keyframes drawPath {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* ── STATS ── */
+    .stats-strip {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(20px);
+    }
+
+    .stat-cell {
+      padding: 36px 28px; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat-cell:last-child { border-right: none; }
+
+    .stat-num {
+      font-size: 38px; font-weight: 800;
+      letter-spacing: -0.05em; line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .stat-num.g { color: var(--green); }
+    .stat-num.b { color: var(--accent); }
+
+    .stat-lbl {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.12em; color: var(--dimmer);
+      text-transform: uppercase;
+    }
+
+    /* ── SECTIONS ── */
+    .section {
+      max-width: 1040px; margin: 0 auto;
+      padding: 110px 48px;
+    }
+
+    .eyebrow {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.18em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 18px;
+    }
+
+    .section-h2 {
+      font-size: clamp(30px, 4.5vw, 48px);
+      font-weight: 800; letter-spacing: -0.04em;
+      line-height: 1.05; margin-bottom: 18px;
+    }
+
+    .section-p {
+      font-size: 15px; color: var(--dim);
+      line-height: 1.75; max-width: 520px;
+      font-weight: 400;
+    }
+
+    /* ── STEPS ── */
+    .steps {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 14px; margin-top: 60px;
+    }
+
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .step:hover {
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    .step-n {
+      font-size: 10px; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    .step-h {
+      font-size: 17px; font-weight: 700;
+      letter-spacing: -0.025em; margin-bottom: 10px;
+    }
+
+    .step-p {
+      font-size: 13px; color: var(--dim);
+      line-height: 1.65; font-weight: 400;
+    }
+
+    /* ── FORMULA ── */
+    .formula-wrap {
+      margin-top: 56px;
+      background: var(--surface);
+      border: 1px solid var(--ab);
+      border-radius: 18px; padding: 40px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+
+    .formula-wrap::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 60%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .formula-code {
+      font-family: var(--mono);
+      font-size: clamp(15px, 2.5vw, 22px);
+      color: var(--accent); margin-bottom: 16px;
+      letter-spacing: 0.01em;
+    }
+
+    .formula-note {
+      font-size: 13px; color: var(--dimmer);
+      line-height: 1.7; max-width: 480px; margin: 0 auto;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap { margin-top: 60px; }
+
+    .tbl-head, .tbl-row {
+      display: grid;
+      grid-template-columns: 1.8fr 0.8fr 1fr 0.8fr 0.8fr 0.8fr;
+      align-items: center;
+      padding: 14px 24px;
+    }
+
+    .tbl-head {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tbl-head span {
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.12em; color: var(--dimmer);
+      text-transform: uppercase;
+    }
+
+    .tbl-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; margin-top: 8px;
+      transition: border-color 0.18s;
+    }
+
+    .tbl-row:hover { border-color: rgba(255,255,255,0.12); }
+
+    .tbl-row.highlight {
+      background: rgba(14,165,233,0.06);
+      border-color: var(--ab);
+    }
+
+    .tbl-pair { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+    .tbl-pair small { display: block; font-size: 10px; color: var(--dimmer); font-weight: 400; margin-top: 2px; }
+
+    .tbl-val {
+      font-family: var(--mono); font-size: 13px;
+      font-weight: 500; color: var(--dim);
+    }
+
+    .tbl-val.g { color: var(--green); font-weight: 700; }
+    .tbl-val.b { color: var(--accent); font-weight: 600; }
+    .tbl-val.w { color: var(--white); font-weight: 700; }
+
+    /* ── GLASS CARDS ── */
+    /* Liquid glass effect from 21st.dev */
+    .glass-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 14px; margin-top: 60px;
+    }
+
+    .glass-card {
+      position: relative;
+      border-radius: 18px; padding: 30px 28px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+      /* Liquid glass shadow from 21st.dev */
+      box-shadow:
+        0 0 6px rgba(0,0,0,0.03),
+        0 2px 6px rgba(0,0,0,0.08),
+        inset 1px 1px 1px -0.5px rgba(255,255,255,0.08),
+        inset -1px -1px 1px -0.5px rgba(255,255,255,0.04),
+        inset 0 0 6px 6px rgba(255,255,255,0.02);
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255,255,255,0.13);
+      transform: translateY(-2px);
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    }
+
+    .glass-icon { font-size: 22px; margin-bottom: 14px; }
+
+    .glass-title {
+      font-size: 16px; font-weight: 700;
+      letter-spacing: -0.025em; margin-bottom: 8px;
+    }
+
+    .glass-body {
+      font-size: 13px; color: var(--dim);
+      line-height: 1.65; font-weight: 400;
+    }
+
+    /* ── CTA ── */
+    .cta-wrap {
+      text-align: center;
+      padding: 110px 40px;
+      border-top: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+
+    .cta-wrap::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 40%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .cta-glow {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(14,165,233,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-inner { position: relative; z-index: 1; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(0,0,0,0.5);
+    }
+
+    .footer-name {
+      font-size: 14px; font-weight: 700;
+      letter-spacing: -0.02em; color: var(--dimmer);
+    }
+
+    .footer-links {
+      display: flex; gap: 28px;
+    }
+
+    .footer-links a {
+      font-size: 12px; color: var(--dimmer);
+      text-decoration: none; letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+
+    .footer-links a:hover { color: var(--white); }
+
+    .footer-disc {
+      font-size: 10px; color: rgba(255,255,255,0.12);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.25; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 110px 24px 60px; }
+      .stats-strip { grid-template-columns: 1fr 1fr; }
+      .stat-cell { border-right: none; border-bottom: 1px solid var(--border); }
+      .section { padding: 70px 24px; }
+      .steps { grid-template-columns: 1fr; }
+      .tbl-head, .tbl-row { grid-template-columns: 1.5fr 1fr 1fr; }
+      .tbl-head span:nth-child(n+4), .tbl-val:nth-child(n+4) { display: none; }
+      .glass-grid { grid-template-columns: 1fr; }
+      footer { flex-direction: column; gap: 16px; text-align: center; padding: 28px 24px; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- WEBGL SHADER BACKGROUND (from 21st.dev) -->
+<canvas id="shader-canvas"></canvas>
+
+<div class="content">
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-logo" href="#">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" style="flex-shrink:0">
+        <line x1="4" y1="18" x2="28" y2="18" stroke="rgba(14,165,233,0.3)" stroke-width="1" stroke-dasharray="2 2"/>
+        <path d="M4 22 L9 22 L11 20 L13 14 L16 8 L19 14 L21 20 L23 18 L28 18"
+          stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="16" cy="8" r="2" fill="#0EA5E9"/>
+      </svg>
+      <div class="nav-wordmark">
+        Quantile
+        <small>PAIRS TRADING</small>
+      </div>
+    </a>
+    <a class="gradient-btn" href="https://github.com/patdonohue07/quantile" target="_blank">
+      Open App →
+    </a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-inner">
+
+      <!-- Animated signal mark -->
+      <div class="hero-signal">
+        <svg width="300" height="64" viewBox="0 0 300 64" fill="none">
+          <line x1="0" y1="40" x2="300" y2="40" stroke="rgba(14,165,233,0.12)" stroke-width="1" stroke-dasharray="4 4"/>
+          <path d="M0 50 L55 50 L70 40 L90 10 L115 50 L150 50 L165 40 L185 32 L200 40 L220 50 L245 38 L300 38"
+            stroke="rgba(14,165,233,0.25)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"
+            stroke-dasharray="600" stroke-dashoffset="600"
+            style="animation: drawPath 2.5s ease 0.4s forwards;"/>
+          <path d="M0 52 L60 52 L75 42 L92 8 L110 42 L140 52 L158 42 L178 30 L195 42 L215 52 L242 36 L300 36"
+            stroke="#0EA5E9" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"
+            stroke-dasharray="600" stroke-dashoffset="600"
+            style="animation: drawPath 2.5s ease 0.7s forwards;"/>
+          <circle cx="92" cy="8" r="4.5" fill="#0EA5E9" opacity="0"
+            style="animation: fadeUp 0.4s ease 2.6s forwards;"/>
+          <circle cx="178" cy="30" r="3" fill="#22C55E" opacity="0"
+            style="animation: fadeUp 0.4s ease 2.8s forwards;"/>
+        </svg>
+      </div>
+
+      <div class="hero-tag">
+        <div class="hero-tag-dot"></div>
+        STATISTICAL ARBITRAGE · THREE EQUITY PAIRS
+      </div>
+
+      <h1 class="hero-h1">
+        Trade the gap.
+        <span class="line2">Not the noise.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Beta-adjusted overnight gap signals for BAC/JPM, V/MA, and PEP/KO.
+        59.3% win rate across 1,111 backtested trades.
+      </p>
+
+      <div class="hero-btns">
+        <a class="gradient-btn" href="https://github.com/patdonohue07/quantile" target="_blank" style="padding:12px 28px;font-size:14px;">
+          Open App →
+        </a>
+        <a class="btn-ghost" href="#methodology">How it works</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS STRIP -->
+  <div class="stats-strip">
+    <div class="stat-cell">
+      <div class="stat-num g">59.3%</div>
+      <div class="stat-lbl">Combined Win Rate</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num b">3.28</div>
+      <div class="stat-lbl">Portfolio Sharpe</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">1,111</div>
+      <div class="stat-lbl">Backtested Trades</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">3 yr</div>
+      <div class="stat-lbl">Backtest Window</div>
+    </div>
+  </div>
+
+  <!-- METHODOLOGY -->
+  <div class="section" id="methodology">
+    <p class="eyebrow">Methodology</p>
+    <h2 class="section-h2">Signal in three steps.</h2>
+    <p class="section-p">
+      Every morning at 9:30 AM, two stocks in the same sector have gapped overnight.
+      Quantile finds the ones that moved unusually far apart — and bets on mean reversion by close.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01 — MEASURE</div>
+        <div class="step-h">Compute the gap</div>
+        <div class="step-p">At market open, record each stock's overnight gap — how much it moved from yesterday's close to today's open.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">02 — ADJUST</div>
+        <div class="step-h">Isolate the shock</div>
+        <div class="step-p">Subtract the target stock's beta-weighted gap from the lead stock's gap. This strips out shared market moves and isolates the pair's divergence.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">03 — RANK</div>
+        <div class="step-h">Fire the signal</div>
+        <div class="step-p">Rank that shock against 3 years of history. Hit the 75th percentile or above — signal fires. Enter at open, exit at close, dollar neutral.</div>
+      </div>
+    </div>
+
+    <div class="formula-wrap">
+      <div class="formula-code">shock = lead_gap − β × target_gap</div>
+      <p class="formula-note">
+        Short the lead, long the target when shock ≥ 75th percentile.
+        Flip it when shock ≤ 25th percentile. Same-day exit. No overnight risk.
+      </p>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="section" id="results" style="padding-top:0;">
+    <p class="eyebrow">Backtest Results</p>
+    <h2 class="section-h2">Three years of data.<br/>Three profitable pairs.</h2>
+    <p class="section-p">
+      Jan 2023 – Mar 2026 · $1,000/leg · dollar neutral · open-to-close.
+      Transaction costs not modeled.
+    </p>
+
+    <div class="table-wrap">
+      <div class="tbl-head">
+        <span>Pair</span>
+        <span>Trades</span>
+        <span>Win Rate</span>
+        <span>Sharpe</span>
+        <span>Sortino</span>
+        <span>Max DD</span>
+      </div>
+      <div class="tbl-row">
+        <div class="tbl-pair">BAC / JPM <small>Bank of America · JPMorgan</small></div>
+        <div class="tbl-val">479</div>
+        <div class="tbl-val g">55.3%</div>
+        <div class="tbl-val b">1.37</div>
+        <div class="tbl-val">1.63</div>
+        <div class="tbl-val">$153</div>
+      </div>
+      <div class="tbl-row">
+        <div class="tbl-pair">V / MA <small>Visa · Mastercard</small></div>
+        <div class="tbl-val">418</div>
+        <div class="tbl-val g">63.4%</div>
+        <div class="tbl-val b">4.08</div>
+        <div class="tbl-val">5.85</div>
+        <div class="tbl-val">$35</div>
+      </div>
+      <div class="tbl-row">
+        <div class="tbl-pair">PEP / KO <small>PepsiCo · Coca-Cola</small></div>
+        <div class="tbl-val">214</div>
+        <div class="tbl-val g">59.3%</div>
+        <div class="tbl-val b">1.04</div>
+        <div class="tbl-val">0.77</div>
+        <div class="tbl-val">$64</div>
+      </div>
+      <div class="tbl-row highlight">
+        <div class="tbl-pair" style="color:#0EA5E9;">Combined <small style="color:rgba(255,255,255,0.25);">All three pairs</small></div>
+        <div class="tbl-val w">1,111</div>
+        <div class="tbl-val g">59.3%</div>
+        <div class="tbl-val b" style="font-weight:700;">3.28</div>
+        <div class="tbl-val b">4.76</div>
+        <div class="tbl-val w">$108</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSPARENCY -->
+  <div class="section" id="transparency" style="padding-top:0;">
+    <p class="eyebrow">Why trust it</p>
+    <h2 class="section-h2">Built in the open.</h2>
+    <p class="section-p">
+      No black box. The logic is public. Losses are shown.
+      You can verify every number yourself.
+    </p>
+
+    <div class="glass-grid">
+      <div class="glass-card">
+        <div class="glass-icon">📐</div>
+        <div class="glass-title">Verified logic</div>
+        <div class="glass-body">Python backtest output verified against the original HTML scorecard line by line. Both produce identical signals for the same inputs.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">📋</div>
+        <div class="glass-title">Live trade log</div>
+        <div class="glass-body">Every signal gets logged with timestamp, entry prices, percentile, and outcome. Win rate updates in real time as trades close.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">⚖️</div>
+        <div class="glass-title">Honest drawdowns</div>
+        <div class="glass-body">Max drawdown shown for every pair. Transaction costs not modeled — stated clearly. The numbers are what they are, nothing inflated.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">🔓</div>
+        <div class="glass-title">Open source</div>
+        <div class="glass-body">Full backtest engine, deployment script, and React app on GitHub. Fork it, audit it, run it yourself. Nothing is hidden.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-wrap">
+    <div class="cta-glow"></div>
+    <div class="cta-inner">
+      <p class="eyebrow" style="margin-bottom:18px;">Get started</p>
+      <h2 class="section-h2" style="margin-bottom:18px;">Free. No account.<br/>Open the app.</h2>
+      <p class="section-p" style="margin:0 auto 44px;">
+        Enter today's opening prices, get a signal in seconds.
+        The math does the rest.
+      </p>
+      <div class="hero-btns">
+        <a class="gradient-btn" href="https://github.com/patdonohue07/quantile" target="_blank" style="padding:13px 30px;font-size:14px;">
+          Open App →
+        </a>
+        <a class="btn-ghost" href="https://github.com/patdonohue07/quantile" target="_blank">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-name">Quantile</div>
+    <div class="footer-links">
+      <a href="https://github.com/patdonohue07/quantile" target="_blank">GitHub</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#results">Results</a>
+    </div>
+    <div class="footer-disc">Research only · Not financial advice</div>
+  </footer>
+
+</div><!-- /content -->
+
+<!-- WEBGL SHADER (from 21st.dev shader-background component) -->
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas');
+  const gl = canvas.getContext('webgl');
+  if (!gl) return;
+
+  const vs = `attribute vec4 p; void main(){gl_Position=p;}`;
+  const fs = `
+    precision highp float;
+    uniform vec2 R; uniform float T;
+    const float s=5.; const vec4 lc=vec4(.14,.33,.88,1.);
+    const float mw=.008,xw=.07,ls=.08,la=.4,lf=.2,ws=.05,wf=.5,wa=.35,os=.1,of=.5,mn=.6,mx=1.8;
+    float rnd(float t){return(cos(t)+cos(t*1.3+1.3)+cos(t*1.4+1.4))/3.;}
+    float line(float p,float hw,float t){return smoothstep(hw,.0,abs(p-t));}
+    void main(){
+      vec2 uv=gl_FragCoord.xy/R;
+      vec2 sp=(gl_FragCoord.xy-R/2.)/R.x*2.*s;
+      float hf=1.-(cos(uv.x*6.28)*.5+.5);
+      float vf=1.-(cos(uv.y*6.28)*.5+.5);
+      sp.y+=rnd(sp.x*wf+T*ws)*wa*(.5+hf);
+      sp.x+=rnd(sp.y*wf+T*ws+2.)*wa*hf;
+      vec4 lines=vec4(0.);
+      for(int l=0;l<9;l++){
+        float nl=float(l)/9.;
+        float r=rnd(float(l)+sp.x*of+T*os)*.5+.5;
+        float hw=mix(mw,xw,r*hf)/2.;
+        float off=rnd(float(l)+sp.x*of+T*os*(1.+nl))*mix(mn,mx,hf);
+        float lp=rnd(sp.x*lf+T*ls)*hf*la+off;
+        float ln=line(lp,hw,sp.y)/2.+line(lp,hw*.15,sp.y);
+        lines+=ln*lc*r*.45;
+      }
+      vec4 bg=vec4(.015,.015,.04,1.)*(vf*.4+.6);
+      gl_FragColor=bg+lines*.6;
+    }`;
+
+  const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);return s;};
+  const prog=gl.createProgram();
+  gl.attachShader(prog,mk(gl.VERTEX_SHADER,vs));
+  gl.attachShader(prog,mk(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(prog);
+
+  const buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+
+  const pL=gl.getAttribLocation(prog,'p');
+  const rL=gl.getUniformLocation(prog,'R');
+  const tL=gl.getUniformLocation(prog,'T');
+
+  const resize=()=>{
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+    gl.viewport(0,0,canvas.width,canvas.height);
+  };
+  window.addEventListener('resize',resize);
+  resize();
+
+  let t0=Date.now(),raf;
+  const draw=()=>{
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.vertexAttribPointer(pL,2,gl.FLOAT,false,0,0);
+    gl.enableVertexAttribArray(pL);
+    gl.uniform2f(rL,canvas.width,canvas.height);
+    gl.uniform1f(tL,(Date.now()-t0)/1000);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    raf=requestAnimationFrame(draw);
+  };
+  draw();
+})();
+</script>
+
+</body>
+</html>
