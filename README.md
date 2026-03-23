@@ -60,6 +60,7 @@ Positions close automatically at the end of the day.
 
 - `Scorecard V6` — signal dashboard, run in browser each morning
 - `Scorecard Deploy Code` — automated deployment via Alpaca paper trading
+- `Backtest Code` — full backtesting engine with threshold optimization and Sharpe/Sortino calculations
 
 ## Stack
 
