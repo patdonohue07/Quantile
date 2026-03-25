@@ -1,0 +1,72 @@
+# Quantile Automation Script — Setup Guide
+
+## Step 1 — Get your Alpaca keys
+
+1. Go to alpaca.markets
+2. Sign up for a free account
+3. Go to Paper Trading → API Keys
+4. Create a new key pair
+5. Save both keys — you'll need them in Step 3
+
+## Step 2 — Install Python dependencies
+
+Open your terminal and run:
+
+pip install alpaca-py pandas numpy
+
+## Step 3 — Set your environment variables
+
+Create a file called .env in the same folder as the script:
+
+ALPACA_API_KEY=your_key_here
+ALPACA_SECRET_KEY=your_secret_here
+
+## Step 4 — Test it manually
+
+Run the script once to make sure it works:
+
+python scorecard_deploy.py
+
+You should see output like:
+
+PAIR       SHOCK     PCTILE   SIGNAL
+BAC/JPM   +0.012%   52.3th   No signal
+V/MA      +0.847%   78.1th   SHORT V / LONG MA
+PEP/KO    -0.203%   31.4th   No signal
+
+## Step 5 — Set up the cron job (Mac/Linux)
+
+Open terminal and run:
+
+crontab -e
+
+Add this line — replace the path with your actual file location:
+
+30 9 * * 1-5 /usr/bin/python3 /path/to/scorecard_deploy.py >> /path/to/cron.log 2>&1
+
+Save and exit. The script now runs automatically every weekday at 9:30 AM ET.
+
+## Step 6 — Verify it's working
+
+Check the log file the morning after you set it up:
+
+cat /path/to/cron.log
+
+You should see the signal output from that morning's run.
+
+## Adjusting position size
+
+The default is $1,000 per leg. To change it open scorecard_deploy.py 
+and find this line near the top:
+
+POSITION_SIZE = 1000
+
+Change 1000 to whatever dollar amount you want per leg.
+
+## Questions
+
+DM @patdonohuetrades on X or Instagram.
+
+---
+
+Not financial advice. Educational use only.
