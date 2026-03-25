@@ -120,10 +120,14 @@ README.md
 - [x] React app with signal generation
 - [x] Alpaca paper trading deployment script
 - [x] Persistent trade log with P&L tracking
-- [ ] Live price auto-population via Alpaca API
+- [x] Vercel serverless API layer (api/prices.js)
+- [x] One-command setup script (setup.sh)
+- [x] Gumroad automation script listing — $99
+- [x] Gumroad links added to landing page and app
 - [ ] Vercel deployment
 - [ ] Cron job automation
 - [ ] Real-time P&L from paper account
+- [ ] Live price auto-population via Alpaca API
 
 ---
 
