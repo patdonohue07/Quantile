@@ -2,7 +2,6 @@
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Quantile — Setup Script
-# Run this once on your new laptop to set everything up automatically.
 #
 # What this does:
 #   1. Checks Node.js and npm are installed
