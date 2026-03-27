@@ -4,22 +4,22 @@
 # Quantile — Setup Script
 #
 # What this does:
-#   1. Checks Node.js and npm are installed
+#   1. Checks Node.js, npm, Git, Python3 are installed
 #   2. Clones the GitHub repo
 #   3. Creates the React project structure
 #   4. Installs all dependencies
-#   5. Copies your app files into the right places
+#   5. Copies app files into the right places
 #   6. Installs the Vercel CLI
-#   7. Sets up the Python backend dependencies
+#   7. Sets up Python backend dependencies
 #   8. Configures the 9:30 AM cron job
-#   9. Creates a .env file template for your Alpaca keys
+#   9. Creates a .env file template for Alpaca keys
 #
 # Usage:
 #   chmod +x setup.sh
 #   ./setup.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
-set -e  # Exit immediately if any command fails
+set -e
 
 echo ""
 echo "╔═══════════════════════════════════════╗"
@@ -84,8 +84,8 @@ echo ""
 # ── STEP 4: Copy app files into React project ─────────────────────────────────
 echo "→ Setting up project structure..."
 
-# Copy the main app file
-cp "app/QuantX V2" quantile-app/src/App.js
+# Copy the main app file — filename uses underscore to avoid shell issues
+cp "app/QuantX_V2.jsx" quantile-app/src/App.js
 echo "✓ App.js copied"
 
 # Create api folder and copy serverless function
@@ -115,7 +115,7 @@ echo ""
 # ── STEP 7: Python backend dependencies ──────────────────────────────────────
 echo "→ Installing Python dependencies..."
 cd ../backend
-pip3 install alpaca-py yfinance pandas numpy --quiet
+pip3 install alpaca-py yfinance pandas numpy requests --quiet
 echo "✓ Python packages installed"
 cd ..
 echo ""
@@ -149,11 +149,9 @@ SCRIPT_PATH="$(pwd)/backend/Scorecard Deploy Code"
 PYTHON_PATH="$(which python3)"
 CRON_JOB="30 9 * * 1-5 $PYTHON_PATH '$SCRIPT_PATH' >> $(pwd)/backend/cron.log 2>&1"
 
-# Check if cron job already exists
 if crontab -l 2>/dev/null | grep -q "Scorecard Deploy Code"; then
   echo "  Cron job already exists — skipping."
 else
-  # Add to crontab
   (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
   echo "✓ Cron job set for 9:30 AM ET Monday-Friday"
 fi
