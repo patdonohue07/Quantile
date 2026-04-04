@@ -22,8 +22,8 @@ const C = {
   yellow: "#F59E0B",
   yellowDim: "rgba(245,158,11,0.10)",
   yellowBorder: "rgba(245,158,11,0.22)",
-  font: "-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif",
-  mono: "-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif",
+  font: "'Lora', Georgia, serif",
+  mono: "'JetBrains Mono', monospace",
 };
 
 // ── STORAGE ────────────────────────────────────────────────────────────────────
@@ -409,7 +409,7 @@ function PctBar({ value, th, lo }) {
             fontSize: 13,
             fontWeight: 700,
             color: has ? barColor : C.dimmest,
-            fontFamily: C.mono,
+            fontFamily: C.font,
           }}
         >
           {has ? `${value.toFixed(1)}th` : "—"}
@@ -560,7 +560,7 @@ function PriceInput({ ticker, sub, value, onChange, locked }) {
           color: value ? (locked ? C.dim : C.white) : "rgba(255,255,255,0.12)",
           fontSize: 16,
           fontWeight: 600,
-          fontFamily: C.mono,
+          fontFamily: C.font,
           cursor: locked ? "default" : "text",
         }}
       />
@@ -784,9 +784,10 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
             <span
               style={{
                 fontSize: 17,
-                fontWeight: 700,
-                color: C.white,
+                fontWeight: 500,
+                color: C.dim,
                 letterSpacing: "-0.03em",
+                fontFamily: C.font,
               }}
             >
               {pair.lead}
@@ -797,9 +798,10 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
             <span
               style={{
                 fontSize: 17,
-                fontWeight: 500,
-                color: C.dim,
+                fontWeight: 700,
+                color: C.white,
                 letterSpacing: "-0.03em",
+                fontFamily: C.font,
               }}
             >
               {pair.target}
@@ -849,7 +851,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
               style={{
                 fontSize: 10,
                 color: hasSignal ? C.green : "rgba(255,255,255,0.22)",
-                fontFamily: C.mono,
+                fontFamily: C.font,
                 fontWeight: 600,
                 transition: "color 0.25s",
               }}
@@ -896,7 +898,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
                 color: sc,
                 marginTop: -12,
                 marginBottom: 12,
-                fontFamily: C.mono,
+                fontFamily: C.font,
                 fontWeight: 600,
               }}
             >
@@ -1089,7 +1091,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
                     style={{
                       fontSize: 14,
                       fontWeight: 700,
-                      fontFamily: C.mono,
+                      fontFamily: C.font,
                       color: val > 0 ? C.green : C.red,
                     }}
                   >
@@ -1237,7 +1239,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                   fontWeight: 700,
                   color,
                   letterSpacing: "-0.03em",
-                  fontFamily: C.mono,
+                  fontFamily: C.font,
                 }}
               >
                 {value}
@@ -1353,6 +1355,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                           fontWeight: 700,
                           color: C.white,
                           letterSpacing: "-0.02em",
+                          fontFamily: C.font,
                         }}
                       >
                         {entry.pair}
@@ -1401,7 +1404,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                       style={{
                         fontSize: 11,
                         color: C.dimmer,
-                        fontFamily: C.mono,
+                        fontFamily: C.font,
                       }}
                     >
                       {entry.date}
@@ -1410,7 +1413,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                       style={{
                         fontSize: 10,
                         color: C.dimmest,
-                        fontFamily: C.mono,
+                        fontFamily: C.font,
                       }}
                     >
                       {entry.time} ET
@@ -1441,7 +1444,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                         fontSize: 12,
                         fontWeight: 700,
                         color: C.accent,
-                        fontFamily: C.mono,
+                        fontFamily: C.font,
                       }}
                     >
                       {entry.percentile}th
@@ -1463,7 +1466,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        fontFamily: C.mono,
+                        fontFamily: C.font,
                         color: +entry.lead_gap > 0 ? C.green : C.red,
                       }}
                     >
@@ -1487,7 +1490,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        fontFamily: C.mono,
+                        fontFamily: C.font,
                         color:
                           entry.pnl > 0
                             ? C.green
@@ -1612,7 +1615,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
                           padding: "10px 12px",
                           color: C.white,
                           fontSize: 14,
-                          fontFamily: C.mono,
+                          fontFamily: C.font,
                           outline: "none",
                         }}
                       />
@@ -1848,7 +1851,7 @@ function ResearchPage() {
                   fontWeight: 700,
                   color,
                   letterSpacing: "-0.04em",
-                  fontFamily: C.mono,
+                  fontFamily: C.font,
                 }}
               >
                 {value}
@@ -1902,7 +1905,7 @@ function ResearchPage() {
                 border: `1px solid ${C.greenBorder}`,
                 padding: "4px 10px",
                 borderRadius: 8,
-                fontFamily: C.mono,
+                fontFamily: C.font,
               }}
             >
               {pair.stats.win}%
@@ -1938,7 +1941,7 @@ function ResearchPage() {
                     fontSize: 14,
                     fontWeight: 600,
                     color: C.dim,
-                    fontFamily: C.mono,
+                    fontFamily: C.font,
                   }}
                 >
                   {value}
@@ -2002,7 +2005,7 @@ function ResearchPage() {
               style={{
                 fontSize: 11,
                 color: C.dim,
-                fontFamily: k === "Formula" ? C.mono : C.font,
+                fontFamily: C.mono,
                 lineHeight: 1.6,
               }}
             >
@@ -2263,7 +2266,7 @@ export default function Quantile() {
             style={{
               fontSize: 10,
               color: "rgba(255,255,255,0.15)",
-              fontFamily: C.mono,
+              fontFamily: C.font,
             }}
           >
             {DAYS[day]} {pad(h)}:{pad(m)}
@@ -2448,7 +2451,7 @@ export default function Quantile() {
                   </span>
                 </div>
                 <span
-                  style={{ fontSize: 10, color: C.dimmest, fontFamily: C.mono }}
+                  style={{ fontSize: 10, color: C.dimmest, fontFamily: C.font }}
                 >
                   {DAYS[day]} {pad(h)}:{pad(m)}:{pad(now.getSeconds())} ET
                 </span>
