@@ -34,7 +34,7 @@ const TICKERS = ["V", "MA", "LOW", "HD", "PG", "CL", "MS", "GS", "BAC", "JPM"];
 const BASE_URL = "https://data.alpaca.markets/v2";
 
 async function getPrevClose(ticker, apiKey, secretKey) {
-  const url = `${BASE_URL}/stocks/${ticker}/bars?timeframe=1Day&limit=2&adjustment=raw&feed=iex`;
+  const url = `${BASE_URL}/stocks/${ticker}/bars?timeframe=1Day&limit=3&adjustment=raw&feed=iex`;
 
   const res = await fetch(url, {
     headers: {
@@ -54,7 +54,7 @@ async function getPrevClose(ticker, apiKey, secretKey) {
     throw new Error(`No bars returned for ${ticker}`);
   }
 
-  return bars[bars.length - 1].c;
+  return bars[bars.length - 2].c;
 }
 
 async function getTodayOpen(ticker, apiKey, secretKey) {
