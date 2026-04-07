@@ -29,18 +29,18 @@ const C = {
 // ── STORAGE ────────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "quantile-trade-log";
 
-async function loadLog() {
+function loadLog() {
   try {
-    const result = await window.storage.get(STORAGE_KEY);
-    return result ? JSON.parse(result.value) : [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-async function saveLog(entries) {
+function saveLog(entries) {
   try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch {}
 }
 
@@ -681,7 +681,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
         lo: String(liveData.lead_open),
         tpc: String(liveData.target_prev_close),
         to: String(liveData.target_open),
-      });
+  
   }, [liveData]);
 
   const upd = (k, val) => {
@@ -739,7 +739,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
       outcome: "pending",
       pnl: null,
       notes: "",
-    });
+
   };
 
   return (
@@ -1164,7 +1164,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
       outcome: editData.outcome,
       pnl: editData.pnl !== "" ? +editData.pnl : null,
       notes: editData.notes,
-    });
+
     setEditingId(null);
   };
 
@@ -2087,20 +2087,14 @@ export default function Quantile() {
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    loadLog().then((e) => {
-      setLogEntries(e);
-      setLogLoaded(true);
-    });
+    const e = loadLog(); setLogEntries(e); setLogLoaded(true); // sync
+
+
+
   }, []);
   useEffect(() => {
-    try {
-      window.storage
-        .get("quantile-onboarded")
-        .then((r) => {
-          if (!r || r.value !== "true") setOnboarded(false);
-        })
-        .catch(() => {});
-    } catch {}
+    const onboarded = localStorage.getItem("quantile-onboarded");
+    if (!onboarded || onboarded !== "true") setOnboarded(false);
   }, []);
 
   // ── REMOVED: auto-fetch useEffect (was here) ──────────────────────────────
@@ -2110,7 +2104,7 @@ export default function Quantile() {
       const n = new Set(prev);
       n.has(i) ? n.delete(i) : n.add(i);
       return n;
-    });
+
   const addLogEntry = (entry) => {
     const u = [...logEntries, entry];
     setLogEntries(u);
@@ -2170,7 +2164,7 @@ export default function Quantile() {
   const dismissOnboarding = () => {
     setOnboarded(true);
     try {
-      window.storage.set("quantile-onboarded", "true");
+      localStorage.setItem("quantile-onboarded", "true");
     } catch {}
   };
   const ageMin = liveLoadTs ? Math.floor((now - liveLoadTs) / 60000) : null;
