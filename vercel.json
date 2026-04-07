@@ -1,1 +1,10 @@
-{"rewrites":[{"source":"/api/(.*)","destination":"/api/$1"},{"source":"/(.*)","destination":"/"}]}
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "crons": [
+    { "path": "/api/trade", "schedule": "31 14 * * 1-5" },
+    { "path": "/api/trade?action=close", "schedule": "0 21 * * 1-5" }
+  ]
+}
