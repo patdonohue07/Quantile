@@ -75,8 +75,8 @@ module.exports = async function handler(req, res) {
         results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", percentile: sig.p.toFixed(1) });
         continue;
       }
-      const leadQty = Math.floor(100 / lo);
-      const targetQty = Math.floor(100 / to);
+      const leadQty = Math.floor(10000 / lo);
+      const targetQty = Math.floor(10000 / to);
       const leadSide = sig.dir === "UP" ? "sell" : "buy";
       const targetSide = sig.dir === "UP" ? "buy" : "sell";
       const [leadOrder, targetOrder] = await Promise.all([
