@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "cd quantile-app && npm install && npm run build",
+    "install": "cd quantile-app && npm install"
+  }
+}
