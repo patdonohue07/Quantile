@@ -681,7 +681,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
         lo: String(liveData.lead_open),
         tpc: String(liveData.target_prev_close),
         to: String(liveData.target_open),
-  
+      });
   }, [liveData]);
 
   const upd = (k, val) => {
@@ -1164,7 +1164,7 @@ function TradeLogPage({ entries, onUpdate, onDelete }) {
       outcome: editData.outcome,
       pnl: editData.pnl !== "" ? +editData.pnl : null,
       notes: editData.notes,
-
+    });
     setEditingId(null);
   };
 
@@ -2104,7 +2104,7 @@ export default function Quantile() {
       const n = new Set(prev);
       n.has(i) ? n.delete(i) : n.add(i);
       return n;
-
+    });
   const addLogEntry = (entry) => {
     const u = [...logEntries, entry];
     setLogEntries(u);
