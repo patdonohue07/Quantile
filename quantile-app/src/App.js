@@ -567,9 +567,9 @@ function PriceInput({ ticker, sub, value, onChange, locked }) {
       {locked && (
         <div
           style={{
-            position: "absolute",
-            top: 10,
-            right: 12,
+           position: "absolute",
+          top: 28,
+          right: 12,
             fontSize: 8,
             color: C.accent,
             letterSpacing: "0.10em",
