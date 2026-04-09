@@ -4,7 +4,7 @@
     { "source": "/(.*)", "destination": "/" }
   ],
   "crons": [
-    { "path": "/api/trade", "schedule": "31 14 * * 1-5" },
-    { "path": "/api/trade?action=close", "schedule": "0 21 * * 1-5" }
+    { "path": "/api/trade", "schedule": "30 13 * * 1-5" },
+    { "path": "/api/close", "schedule": "0 20 * * 1-5" }
   ]
 }
