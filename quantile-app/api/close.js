@@ -1,4 +1,11 @@
 module.exports = async function handler(req, res) {
+  // Block unauthorized calls — only Vercel cron (via CRON_SECRET) allowed
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers["authorization"];
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const key = process.env.ALPACA_API_KEY;
   const secret = process.env.ALPACA_SECRET_KEY;
   if (!key || !secret) return res.status(500).json({ error: "Missing Alpaca credentials" });

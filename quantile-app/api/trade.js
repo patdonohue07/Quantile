@@ -16,28 +16,13 @@ function calcSig(pair, lpc, lo, tpc, to) {
   return { p, dir, ol, ot };
 }
 
-async function getPrices(key, secret) {
-  const TICKERS = ["V","MA","PG","CL","LOW","HD","MS","GS","BAC","JPM"];
-  const now = new Date();
-  const etNow = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const todayET = etNow.toISOString().slice(0,10);
-  const startDate = new Date(etNow); startDate.setDate(startDate.getDate() - 10);
-  const startStr = startDate.toISOString().slice(0,10);
-  const endDate = new Date(etNow); endDate.setDate(endDate.getDate() + 1);
-  const endStr = endDate.toISOString().slice(0,10);
-  const headers = { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret };
-  const results = {};
-  await Promise.all(TICKERS.map(async (ticker) => {
-    const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=1Day&start=${startStr}&end=${endStr}&adjustment=raw&feed=iex`;
-    const res = await fetch(url, { headers });
-    const data = await res.json();
-    const bars = data.bars;
-    const todayBar = bars.find(b => b.t.slice(0,10) === todayET);
-    const prevBars = bars.filter(b => b.t.slice(0,10) < todayET);
-    const yesterdayBar = prevBars[prevBars.length - 1];
-    results[ticker] = { prev_close: yesterdayBar.c, open: todayBar ? todayBar.o : null };
-  }));
-  return results;
+async function getBar(ticker, headers) {
+  const res = await fetch(
+    `https://data.sandbox.alpaca.markets/v2/stocks/${ticker}/bars/latest`,
+    { headers }
+  );
+  const data = await res.json();
+  return data.bar;
 }
 
 async function placeOrder(symbol, qty, side, headers) {
@@ -74,21 +59,24 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ closed: result });
   }
 
-  const prices = await getPrices(key, secret);
   const results = [];
   for (const pair of PAIRS) {
     try {
-      const lpc = prices[pair.lead].prev_close;
-      const lo = prices[pair.lead].open;
-      const tpc = prices[pair.target].prev_close;
-      const to = prices[pair.target].open;
+      const [leadBar, targetBar] = await Promise.all([
+        getBar(pair.lead, headers),
+        getBar(pair.target, headers),
+      ]);
+      const lpc = leadBar.c;
+      const lo = leadBar.o;
+      const tpc = targetBar.c;
+      const to = targetBar.o;
       const sig = calcSig(pair, lpc, lo, tpc, to);
       if (!sig.dir) {
         results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", percentile: sig.p.toFixed(1) });
         continue;
       }
-      const leadQty = Math.floor(10000 / lo);
-      const targetQty = Math.floor(10000 / to);
+      const leadQty = Math.floor(100 / lo);
+      const targetQty = Math.floor(100 / to);
       const leadSide = sig.dir === "UP" ? "sell" : "buy";
       const targetSide = sig.dir === "UP" ? "buy" : "sell";
       const [leadOrder, targetOrder] = await Promise.all([
