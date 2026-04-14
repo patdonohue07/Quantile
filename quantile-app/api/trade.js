@@ -74,6 +74,14 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ closed: result });
   }
 
+  // Clear all existing positions before placing new trades each morning
+  try {
+    await fetch("https://paper-api.alpaca.markets/v2/positions?cancel_orders=true", {
+      method: "DELETE",
+      headers: { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret },
+    });
+  } catch (e) {}
+
   const prices = await getPrices(key, secret);
   const results = [];
   for (const pair of PAIRS) {
