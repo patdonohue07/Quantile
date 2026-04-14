@@ -28,14 +28,20 @@ async function getPrices(key, secret) {
   const headers = { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret };
   const results = {};
   await Promise.all(TICKERS.map(async (ticker) => {
-    const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=1Day&start=${startStr}&end=${endStr}&adjustment=raw&feed=iex`;
-    const res = await fetch(url, { headers });
-    const data = await res.json();
-    const bars = data.bars;
-    const todayBar = bars.find(b => b.t.slice(0,10) === todayET);
-    const prevBars = bars.filter(b => b.t.slice(0,10) < todayET);
-    const yesterdayBar = prevBars[prevBars.length - 1];
-    results[ticker] = { prev_close: yesterdayBar.c, open: todayBar ? todayBar.o : null };
+    try {
+      const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=1Day&start=${startStr}&end=${endStr}&adjustment=raw&feed=iex`;
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+      const bars = data.bars;
+      if (!bars || bars.length === 0) throw new Error(`No bars for ${ticker}`);
+      const todayBar = bars.find(b => b.t.slice(0,10) === todayET);
+      const prevBars = bars.filter(b => b.t.slice(0,10) < todayET);
+      const yesterdayBar = prevBars[prevBars.length - 1];
+      if (!yesterdayBar) throw new Error(`No prev bar for ${ticker}`);
+      results[ticker] = { prev_close: yesterdayBar.c, open: todayBar ? todayBar.o : null };
+    } catch (e) {
+      results[ticker] = null;
+    }
   }));
   return results;
 }
@@ -86,10 +92,20 @@ module.exports = async function handler(req, res) {
   const results = [];
   for (const pair of PAIRS) {
     try {
-      const lpc = prices[pair.lead].prev_close;
-      const lo = prices[pair.lead].open;
-      const tpc = prices[pair.target].prev_close;
-      const to = prices[pair.target].open;
+      const leadPrices = prices[pair.lead];
+      const targetPrices = prices[pair.target];
+      if (!leadPrices || !targetPrices) {
+        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "price fetch failed" });
+        continue;
+      }
+      const lpc = leadPrices.prev_close;
+      const lo = leadPrices.open;
+      const tpc = targetPrices.prev_close;
+      const to = targetPrices.open;
+      if (!lo || !to || !lpc || !tpc) {
+        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "null price — market may not be open" });
+        continue;
+      }
       const sig = calcSig(pair, lpc, lo, tpc, to);
       if (!sig.dir) {
         results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", percentile: sig.p.toFixed(1) });
@@ -97,6 +113,10 @@ module.exports = async function handler(req, res) {
       }
       const leadQty = Math.floor(10000 / lo);
       const targetQty = Math.floor(10000 / to);
+      if (leadQty === 0 || targetQty === 0) {
+        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "qty computed as 0" });
+        continue;
+      }
       const leadSide = sig.dir === "UP" ? "sell" : "buy";
       const targetSide = sig.dir === "UP" ? "buy" : "sell";
       const [leadOrder, targetOrder] = await Promise.all([
