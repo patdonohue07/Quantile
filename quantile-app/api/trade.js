@@ -6,7 +6,7 @@
  *   1. POSITION_SIZE = 10000 canonical
  *   2. ET time-of-day guard (DST-safe, cron fires twice per action)
  *   3. Rolling 3-year sk from Alpaca bars at runtime (no lookahead)
- *   4. feed=sip (was iex)
+ *   4. feed=iex (was iex)
  *   5. Poll today's open bar with fallback
  *   6. Idempotency guard (skip if positions already open)
  *   7. action=reset endpoint for manual flattening
@@ -72,7 +72,7 @@ async function getDailyBars(ticker, days, headers) {
   const start = new Date(now);
   start.setDate(start.getDate() - days);
   const s = etDateStr(start), e = etDateStr(end);
-  const url = `${ALPACA_DATA}/stocks/${ticker}/bars?timeframe=1Day&start=${s}&end=${e}&adjustment=raw&feed=sip&limit=10000`;
+  const url = `${ALPACA_DATA}/stocks/${ticker}/bars?timeframe=1Day&start=${s}&end=${e}&adjustment=raw&feed=iex&limit=10000`;
   const data = await alpacaGet(url, headers);
   return data.bars || [];
 }
@@ -85,7 +85,7 @@ async function pollTodaysOpen(ticker, todayET, headers, maxAttempts) {
     if (today && today.o) return { open: today.o, source: "daily-bar" };
     if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 10000));
   }
-  const url = `${ALPACA_DATA}/stocks/${ticker}/trades/latest?feed=sip`;
+  const url = `${ALPACA_DATA}/stocks/${ticker}/trades/latest?feed=iex`;
   const data = await alpacaGet(url, headers);
   if (data.trade && data.trade.p) {
     return { open: data.trade.p, source: "latest-trade" };
