@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quantile — Pairs Trading Signals</title>
+  <meta name="description" content="Beta-adjusted overnight gap signals for equity pairs. 59.7% win rate across 865 backtested trades. Slippage included."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'%3E%3Cline x1='4' y1='18' x2='28' y2='18' stroke='rgba(59,130,246,0.25)' stroke-width='1' stroke-dasharray='2 3'/%3E%3Cpath d='M4 22 L9 22 L11 20 L13 14 L16 8 L19 14 L21 20 L23 18 L28 18' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='16' cy='8' r='2.5' fill='%233B82F6'/%3E%3C/svg%3E"/>
+  <style>
+    :root {
+      --bg:      #000000;
+      --surface: #0a0a0a;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #3B82F6;
+      --ad:      rgba(59,130,246,0.1);
+      --ab:      rgba(59,130,246,0.22);
+      --white:   #ffffff;
+      --dim:     rgba(255,255,255,0.45);
+      --dimmer:  rgba(255,255,255,0.22);
+      --dimmest: rgba(255,255,255,0.07);
+      --green:   #22C55E;
+      --red:     #EF4444;
+      --font:    'Lora', Georgia, 'Times New Roman', serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--white); font-family: var(--font); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    #shader-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.2; }
+    .content { position: relative; z-index: 1; }
+
+    /* Nav */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 48px; background: rgba(0,0,0,0.75); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border-bottom: 1px solid var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-wordmark { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--white); line-height: 1; }
+    .nav-wordmark small { display: block; font-size: 8px; color: var(--dimmer); letter-spacing: 0.14em; font-weight: 600; margin-top: 2px; text-transform: uppercase; }
+    .nav-btn { display: inline-flex; align-items: center; padding: 9px 20px; border-radius: 8px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--white); text-decoration: none; cursor: pointer; background: var(--accent); letter-spacing: 0.01em; transition: opacity 0.15s; }
+    .nav-btn:hover { opacity: 0.88; }
+
+    /* Hero */
+    .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 120px 40px 80px; }
+    .hero-inner { position: relative; z-index: 1; }
+    .hero-tag { display: inline-flex; align-items: center; gap: 8px; background: var(--ad); border: 1px solid var(--ab); border-radius: 20px; padding: 5px 14px; font-size: 9px; font-weight: 600; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 28px; text-transform: uppercase; animation: fadeUp 0.7s ease both; }
+    .hero-tag-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    .hero-h1 { font-size: clamp(48px, 8vw, 88px); font-weight: 700; line-height: 0.95; letter-spacing: -0.02em; margin-bottom: 28px; color: var(--white); animation: fadeUp 0.7s ease 0.08s both; }
+    .hero-sub { font-size: clamp(15px, 1.8vw, 18px); color: var(--dim); line-height: 1.65; max-width: 500px; margin: 0 auto 44px; font-weight: 400; letter-spacing: 0; animation: fadeUp 0.7s ease 0.14s both; }
+    .hero-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; animation: fadeUp 0.7s ease 0.2s both; }
+    .btn-primary { display: inline-flex; align-items: center; padding: 12px 28px; border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--white); text-decoration: none; cursor: pointer; background: var(--accent); letter-spacing: 0.01em; transition: opacity 0.15s; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost { display: inline-flex; align-items: center; padding: 10px 22px; border-radius: 8px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--dim); text-decoration: none; border: 1px solid var(--border); background: rgba(255,255,255,0.03); letter-spacing: 0.01em; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.18); color: var(--white); background: rgba(255,255,255,0.06); }
+    .hero-signal { margin-bottom: 52px; animation: fadeUp 0.7s ease both; }
+    @keyframes drawPath { to { stroke-dashoffset: 0; } }
+  
+    /* Stats strip */
+    .stats-strip { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); }
+    .stat-cell { padding: 36px 28px; text-align: center; border-right: 1px solid var(--border); }
+    .stat-cell:last-child { border-right: none; }
+    .stat-num { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }
+    .stat-num.g { color: var(--green); }
+    .stat-num.b { color: var(--accent); }
+    .stat-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--dimmer); text-transform: uppercase; }
+
+    /* Sections */
+    .section { max-width: 1040px; margin: 0 auto; padding: 96px 48px; }
+    .eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--accent); text-transform: uppercase; margin-bottom: 18px; }
+    .section-h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 18px; }
+    .section-p { font-size: 15px; color: var(--dim); line-height: 1.75; max-width: 520px; font-weight: 400; letter-spacing: 0; }
+
+    /* Steps */
+    .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 60px; }
+    .step { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: border-color 0.2s; }
+    .step:hover { border-color: rgba(255,255,255,0.12); }
+    .step-n { font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 0.12em; margin-bottom: 16px; text-transform: uppercase; }
+    .step-h { font-size: 17px; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 10px; }
+    .step-p { font-size: 13px; color: var(--dim); line-height: 1.65; font-weight: 400; }
+
+    /* Formula */
+    .formula-wrap { margin-top: 56px; background: var(--surface); border: 1px solid var(--ab); border-radius: 16px; padding: 40px; text-align: center; position: relative; overflow: hidden; }
+    .formula-code { font-size: clamp(15px, 2.5vw, 22px); color: var(--accent); margin-bottom: 16px; letter-spacing: 0.01em; font-weight: 600; }
+    .formula-note { font-size: 13px; color: var(--dimmer); line-height: 1.7; max-width: 480px; margin: 0 auto; }
+
+    /* Comparison table */
+    .compare-table { margin-top: 60px; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .compare-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; }
+    .compare-cell { padding: 14px 20px; font-size: 13px; color: var(--dim); font-weight: 400; border-bottom: 1px solid var(--border); }
+    .compare-row:last-child .compare-cell { border-bottom: none; }
+    .compare-row.head .compare-cell { background: var(--surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--dimmer); text-transform: uppercase; }
+    .compare-row.head .compare-cell.hl { background: var(--ad); border-left: 1px solid var(--ab); border-right: 1px solid var(--ab); color: var(--accent); }
+    .compare-cell.hl { border-left: 1px solid rgba(59,130,246,0.08); border-right: 1px solid rgba(59,130,246,0.08); color: var(--white); font-weight: 600; }
+    .compare-cell.label { font-size: 12px; color: var(--dimmer); font-weight: 600; }
+    .compare-row:nth-child(odd) .compare-cell { background: rgba(255,255,255,0.02); }
+    .compare-row:nth-child(odd) .compare-cell.hl { background: rgba(59,130,246,0.04); }
+    .compare-row.head .compare-cell { background: var(--surface); }
+    .compare-row.head .compare-cell.hl { background: var(--ad); }
+    .chk { color: var(--green); font-weight: 700; }
+    .xmk { color: rgba(239,68,68,0.5); }
+
+    /* Pair cards */
+    .pair-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 60px; }
+    .pair-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color 0.2s; grid-column: span 2; }
+    .pair-card:nth-child(4) { grid-column: 2 / span 2; }
+    .pair-card:nth-child(5) { grid-column: 4 / span 2; }
+    .pair-card:hover { border-color: rgba(255,255,255,0.12); }
+    .pair-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .pair-card-name { font-size: 16px; font-weight: 700; color: var(--white); }
+    .pair-card-wr { font-size: 12px; font-weight: 700; color: var(--green); background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); padding: 3px 10px; border-radius: 8px; }
+    .pair-card-label { font-size: 11px; color: var(--dimmer); margin-bottom: 16px; }
+    .pair-card-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .pair-card-stat-lbl { font-size: 9px; color: var(--dimmer); letter-spacing: 0.08em; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+    .pair-card-stat-val { font-size: 14px; font-weight: 600; color: var(--dim); }
+    .pair-card.combined { grid-column: 1 / -1; background: var(--ad); border-color: var(--ab); }
+    .pair-card.combined .pair-card-name { color: var(--accent); }
+    .pair-card.combined .pair-card-stat-val { color: var(--white); font-weight: 700; }
+
+    /* Social proof */
+    .social-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 60px; }
+    .social-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: border-color 0.2s; text-decoration: none; display: block; }
+    .social-card:hover { border-color: rgba(255,255,255,0.12); }
+    .social-platform { font-size: 11px; color: var(--dimmer); letter-spacing: 0.12em; font-weight: 600; text-transform: uppercase; margin-bottom: 16px; }
+    .social-icon { margin-bottom: 14px; }
+    .social-handle { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 6px; }
+    .social-sub { font-size: 12px; color: var(--dimmer); }
+
+    /* Glass cards */
+    .glass-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 60px; }
+    .glass-card { position: relative; border-radius: 16px; padding: 30px 28px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; transition: border-color 0.2s; }
+    .glass-card:hover { border-color: rgba(255,255,255,0.12); }
+    .glass-icon { font-size: 22px; margin-bottom: 14px; }
+    .glass-title { font-size: 16px; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 8px; }
+    .glass-body { font-size: 13px; color: var(--dim); line-height: 1.65; font-weight: 400; }
+
+    /* Waitlist */
+    .waitlist-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 96px 48px; text-align: center; }
+    .waitlist-inner { max-width: 560px; margin: 0 auto; }
+    .waitlist-form { display: flex; gap: 10px; margin-top: 32px; }
+    .waitlist-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; font-size: 14px; font-family: var(--font); color: var(--white); outline: none; transition: border-color 0.15s; }
+    .waitlist-input::placeholder { color: var(--dimmer); }
+    .waitlist-input:focus { border-color: var(--ab); }
+    .waitlist-btn { background: var(--accent); border: none; border-radius: 8px; padding: 14px 24px; font-size: 14px; font-weight: 600; font-family: var(--font); color: var(--white); cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
+    .waitlist-btn:hover { opacity: 0.88; }
+    .waitlist-fine { font-size: 11px; color: rgba(255,255,255,0.12); margin-top: 14px; }
+
+    /* Tier bar */
+    .tier-bar { position: sticky; top: 60px; z-index: 99; height: 36px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 20px; padding: 0 48px; }
+    .tier-text { font-size: 11px; color: var(--dimmer); white-space: nowrap; flex: 1; text-align: right; line-height: 1; }
+    .tier-track { width: 120px; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+    .tier-fill { width: 62.5%; height: 100%; background: var(--accent); border-radius: 2px; }
+    .tier-link { font-size: 11px; color: var(--accent); text-decoration: none; white-space: nowrap; transition: opacity 0.15s; flex: 1; text-align: left; line-height: 1; }
+    .tier-link:hover { opacity: 0.75; }
+
+    /* CTA */
+    .cta-wrap { text-align: center; padding: 96px 40px; border-top: 1px solid var(--border); position: relative; overflow: hidden; }
+    .cta-inner { position: relative; z-index: 1; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 28px 48px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.5); }
+    .footer-name { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; color: var(--dimmer); }
+    .footer-links { display: flex; gap: 28px; }
+    .footer-links a { font-size: 12px; color: var(--dimmer); text-decoration: none; letter-spacing: 0.01em; transition: color 0.15s; }
+    .footer-links a:hover { color: var(--white); }
+    .footer-disc { font-size: 10px; color: rgba(255,255,255,0.12); letter-spacing: 0.05em; }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 110px 24px 60px; }
+      .stats-strip { grid-template-columns: 1fr 1fr; }
+      .stat-cell { border-right: none; border-bottom: 1px solid var(--border); }
+      .section { padding: 70px 24px; }
+      .steps { grid-template-columns: 1fr; }
+      .pair-grid { grid-template-columns: 1fr; }
+      .pair-card { grid-column: span 1; }
+      .pair-card:nth-child(4) { grid-column: span 1; }
+      .pair-card:nth-child(5) { grid-column: span 1; }
+      .pair-card.combined { grid-column: 1; }
+      .compare-table { overflow-x: auto; }
+      .compare-row { min-width: 600px; }
+      .social-grid { grid-template-columns: 1fr; }
+      .glass-grid { grid-template-columns: 1fr; }
+      .waitlist-section { padding: 60px 24px; }
+      .waitlist-form { flex-direction: column; }
+      .tier-track { display: none; }
+      .tier-bar { gap: 12px; padding: 0 20px; }
+      footer { flex-direction: column; gap: 16px; text-align: center; padding: 28px 24px; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="shader-canvas"></canvas>
+
+<div class="content">
+
+  <nav>
+    <a class="nav-logo" href="#">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" style="flex-shrink:0">
+        <line x1="4" y1="18" x2="28" y2="18" stroke="rgba(59,130,246,0.3)" stroke-width="1" stroke-dasharray="2 2"/>
+        <path d="M4 22 L9 22 L11 20 L13 14 L16 8 L19 14 L21 20 L23 18 L28 18" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="16" cy="8" r="2" fill="#3B82F6"/>
+      </svg>
+      <div class="nav-wordmark">
+        Quantile
+        <small>PAIRS TRADING</small>
+      </div>
+    </a>
+    <a class="nav-btn" href="https://app.quantile.online" target="_blank">Open App →</a>
+  </nav>
+
+  <!-- Feature 6: Tier progress bar -->
+  <div class="tier-bar">
+    <span class="tier-text">Quantile Free · 5 pairs unlocked</span>
+    <div class="tier-track"><div class="tier-fill"></div></div>
+    <a class="tier-link" href="#waitlist">3 more pairs with paid tier →</a>
+  </div>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-signal">
+        <svg width="300" height="64" viewBox="0 0 300 64" fill="none">
+          <line x1="0" y1="40" x2="300" y2="40" stroke="rgba(59,130,246,0.12)" stroke-width="1" stroke-dasharray="4 4"/>
+          <path d="M0 50 L55 50 L70 40 L90 10 L115 50 L150 50 L165 40 L185 32 L200 40 L220 50 L245 38 L300 38" stroke="rgba(59,130,246,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-dasharray="600" stroke-dashoffset="600" style="animation: drawPath 2.5s ease 0.4s forwards;"/>
+          <path d="M0 52 L60 52 L75 42 L92 8 L110 42 L140 52 L158 42 L178 30 L195 42 L215 52 L242 36 L300 36" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-dasharray="600" stroke-dashoffset="600" style="animation: drawPath 2.5s ease 0.7s forwards;"/>
+          <circle cx="92" cy="8" r="4.5" fill="#3B82F6" opacity="0" style="animation: fadeUp 0.4s ease 2.6s forwards;"/>
+          <circle cx="178" cy="30" r="3" fill="#22C55E" opacity="0" style="animation: fadeUp 0.4s ease 2.8s forwards;"/>
+        </svg>
+      </div>
+
+      <div class="hero-tag">
+        <div class="hero-tag-dot"></div>
+        STATISTICAL ARBITRAGE · FIVE EQUITY PAIRS
+      </div>
+
+      <h1 class="hero-h1">
+        Trade the signal.<br/>Not the noise.
+      </h1>
+
+      <p class="hero-sub">
+        Free. No account. Open the app.<br/>
+        Enter today's opening prices, get a signal in seconds. The math does the rest.
+      </p>
+
+      <div class="hero-btns">
+        <a class="btn-primary" href="https://app.quantile.online" target="_blank">Open App →</a>
+        <a class="btn-ghost" href="#methodology">How it works</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature 1: Animated counting stats -->
+  <div class="stats-strip" id="stats-strip">
+    <div class="stat-cell">
+      <div class="stat-num g" data-count="59.7" data-suffix="%" data-decimals="1">0%</div>
+      <div class="stat-lbl">Combined Win Rate</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num b" data-count="2.75" data-suffix="" data-decimals="2">0</div>
+      <div class="stat-lbl">Portfolio Sharpe</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" data-count="865" data-suffix="" data-decimals="0" data-duration="1500">0</div>
+      <div class="stat-lbl">Backtested Trades</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">3 yr</div>
+      <div class="stat-lbl">Backtest Window</div>
+    </div>
+  </div>
+
+  <div class="section" id="methodology">
+    <p class="eyebrow">Methodology</p>
+    <h2 class="section-h2">Signal in three steps.</h2>
+    <p class="section-p">Every morning at 9:30 AM, two stocks in the same sector have gapped overnight. Quantile finds the ones that moved unusually far apart — and bets on mean reversion by close.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01 — MEASURE</div>
+        <div class="step-h">Compute the gap</div>
+        <div class="step-p">At market open, record each stock's overnight gap — how much it moved from yesterday's close to today's open.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">02 — ADJUST</div>
+        <div class="step-h">Isolate the shock</div>
+        <div class="step-p">Subtract the target stock's beta-weighted gap from the lead stock's gap. This strips out shared market moves and isolates the pair's divergence.</div>
+      </div>
+      <div class="step">
+        <div class="step-n">03 — RANK</div>
+        <div class="step-h">Fire the signal</div>
+        <div class="step-p">Rank that shock against years of history. Hit the threshold percentile — signal fires. Enter at open, exit at close, dollar neutral.</div>
+      </div>
+    </div>
+    <div class="formula-wrap">
+      <div class="formula-code">shock = lead_gap − β × target_gap</div>
+      <p class="formula-note">Short the lead, long the target when shock hits the upper threshold. Flip it when shock hits the lower threshold. Same-day exit. No overnight risk.</p>
+    </div>
+  </div>
+
+  <!-- Feature 5: Comparison table -->
+  <div class="section" style="padding-top:0;">
+    <p class="eyebrow">Why Quantile</p>
+    <h2 class="section-h2">The math does the work.</h2>
+    <div class="compare-table">
+      <div class="compare-row head">
+        <div class="compare-cell label"></div>
+        <div class="compare-cell">Manual Trading</div>
+        <div class="compare-cell hl">Quantile Free</div>
+        <div class="compare-cell">Quantile Paid</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Gap calculation</div>
+        <div class="compare-cell">Manual math every morning</div>
+        <div class="compare-cell hl">Instant, automated</div>
+        <div class="compare-cell">Instant, automated</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Signal threshold</div>
+        <div class="compare-cell">Guesswork</div>
+        <div class="compare-cell hl">3-year historical rank</div>
+        <div class="compare-cell">3-year historical rank</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Pairs covered</div>
+        <div class="compare-cell">Whatever you track</div>
+        <div class="compare-cell hl">5 equity pairs</div>
+        <div class="compare-cell">6+ pairs (more added)</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Slippage included</div>
+        <div class="compare-cell"><span class="xmk">&#x2717;</span> Rarely</div>
+        <div class="compare-cell hl"><span class="chk">&#x2713;</span> Always</div>
+        <div class="compare-cell"><span class="chk">&#x2713;</span> Always</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Backtest verified</div>
+        <div class="compare-cell"><span class="xmk">&#x2717;</span> Almost never</div>
+        <div class="compare-cell hl"><span class="chk">&#x2713;</span> 865 trades, 3 years</div>
+        <div class="compare-cell"><span class="chk">&#x2713;</span> 865+ trades</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Cost</div>
+        <div class="compare-cell">Your time</div>
+        <div class="compare-cell hl" style="color:var(--green);font-weight:700;">Free</div>
+        <div class="compare-cell" style="color:var(--dimmer);">Coming soon</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature 3: Pair cards replacing table -->
+  <div class="section" id="results" style="padding-top:0;">
+    <p class="eyebrow">Backtest Results</p>
+    <h2 class="section-h2">Five pairs.<br/>All profitable.</h2>
+    <p class="section-p">Jan 2023 – Mar 2026 · $100/leg · dollar neutral · open-to-close · slippage included.</p>
+    <div class="pair-grid">
+      <div class="pair-card">
+        <div class="pair-card-head"><span class="pair-card-name">V / MA</span><span class="pair-card-wr">63.6%</span></div>
+        <div class="pair-card-label">Visa · Mastercard</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">316</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">3.47</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">4.26</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$3.20</div></div>
+        </div>
+      </div>
+      <div class="pair-card">
+        <div class="pair-card-head"><span class="pair-card-name">PG / CL</span><span class="pair-card-wr">62.8%</span></div>
+        <div class="pair-card-label">Procter &amp; Gamble · Colgate</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">156</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">1.97</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">1.50</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$4.42</div></div>
+        </div>
+      </div>
+      <div class="pair-card">
+        <div class="pair-card-head"><span class="pair-card-name">LOW / HD</span><span class="pair-card-wr">59.7%</span></div>
+        <div class="pair-card-label">Lowe's · Home Depot</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">457</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">2.44</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">2.86</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$6.54</div></div>
+        </div>
+      </div>
+      <div class="pair-card">
+        <div class="pair-card-head"><span class="pair-card-name">MS / GS</span><span class="pair-card-wr">59.1%</span></div>
+        <div class="pair-card-label">Morgan Stanley · Goldman Sachs</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">308</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">1.74</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">1.52</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$8.17</div></div>
+        </div>
+      </div>
+      <div class="pair-card">
+        <div class="pair-card-head"><span class="pair-card-name">BAC / JPM</span><span class="pair-card-wr">54.2%</span></div>
+        <div class="pair-card-label">Bank of America · JPMorgan</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">177</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">1.16</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">1.03</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$11.89</div></div>
+        </div>
+      </div>
+      <div class="pair-card combined">
+        <div class="pair-card-head"><span class="pair-card-name">Combined</span><span class="pair-card-wr" style="color:var(--accent);background:var(--ad);border-color:var(--ab);">59.7%</span></div>
+        <div class="pair-card-label" style="color:rgba(255,255,255,0.25);">All five pairs · 865 trades · Sharpe 2.75</div>
+        <div class="pair-card-stats">
+          <div><div class="pair-card-stat-lbl">Trades</div><div class="pair-card-stat-val">865</div></div>
+          <div><div class="pair-card-stat-lbl">Sharpe</div><div class="pair-card-stat-val">2.75</div></div>
+          <div><div class="pair-card-stat-lbl">Sortino</div><div class="pair-card-stat-val">3.94</div></div>
+          <div><div class="pair-card-stat-lbl">Max DD</div><div class="pair-card-stat-val">$30</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="transparency" style="padding-top:0;">
+    <p class="eyebrow">Why trust it</p>
+    <h2 class="section-h2">Built in the open.</h2>
+    <p class="section-p">No black box. The logic is public. Losses are shown. You can verify every number yourself.</p>
+    <div class="glass-grid">
+      <div class="glass-card">
+        <div class="glass-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20L12 4l10 16H2z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>
+        </div>
+        <div class="glass-title">Verified logic</div>
+        <div class="glass-body">Python backtest output verified against the original HTML scorecard line by line. Both produce identical signals for the same inputs.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
+        </div>
+        <div class="glass-title">Live trade log</div>
+        <div class="glass-body">Every signal gets logged with timestamp, entry prices, percentile, and outcome. Win rate updates in real time as trades close.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 7l-5-5-5 5"/><path d="M7 17l5 5 5-5"/></svg>
+        </div>
+        <div class="glass-title">Honest numbers</div>
+        <div class="glass-body">Slippage is included in every backtest result. Correct Sharpe calculation includes all trading days — not just days a signal fires.</div>
+      </div>
+      <div class="glass-card">
+        <div class="glass-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <div class="glass-title">Open source</div>
+        <div class="glass-body">Full backtest engine, and React app on GitHub. Fork it, audit it, run it yourself. Nothing is hidden.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature 2: Social proof -->
+  <div class="section" style="padding-top:0;">
+    <p class="eyebrow">Built in Public</p>
+    <h2 class="section-h2">Follow the journey.</h2>
+    <p class="section-p">Every signal, every trade, every result — posted in real time.</p>
+    <div class="social-grid">
+      <a class="social-card" href="#">
+        <div class="social-platform">YouTube</div>
+        <div class="social-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="#FF0000"><path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.6 3.5 12 3.5 12 3.5s-7.6 0-9.4.6A3 3 0 00.5 6.2 31.4 31.4 0 000 12a31.4 31.4 0 00.5 5.8 3 3 0 002.1 2.1c1.8.6 9.4.6 9.4.6s7.6 0 9.4-.6a3 3 0 002.1-2.1A31.4 31.4 0 0024 12a31.4 31.4 0 00-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+        </div>
+        <div class="social-handle">@donohuecapital</div>
+        <div class="social-sub">Coming soon</div>
+      </a>
+      <a class="social-card" href="#">
+        <div class="social-platform">TikTok</div>
+        <div class="social-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="#ffffff"><path d="M19.3 6.4a4.5 4.5 0 01-3.3-1.4 4.5 4.5 0 01-1-2.5h-3.5v13.2a2.7 2.7 0 01-2.7 2.5 2.7 2.7 0 01-2.7-2.7 2.7 2.7 0 012.7-2.7c.3 0 .5 0 .8.1V9.3a6.2 6.2 0 00-.8-.1 6.2 6.2 0 00-6.2 6.2 6.2 6.2 0 006.2 6.2 6.2 6.2 0 006.2-6.2V9a8 8 0 004.6 1.5V7a4.8 4.8 0 01-.3-.6z"/></svg>
+        </div>
+        <div class="social-handle">@donohuecapital</div>
+        <div class="social-sub">Coming soon</div>
+      </a>
+      <a class="social-card" href="#">
+        <div class="social-platform">Instagram</div>
+        <div class="social-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E1306C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="#E1306C" stroke="none"/></svg>
+        </div>
+        <div class="social-handle">@donohue.capital</div>
+        <div class="social-sub">Coming soon</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Feature 4: Email waitlist -->
+  <div class="waitlist-section" id="waitlist">
+    <div class="waitlist-inner">
+      <p class="eyebrow">Early Access</p>
+      <h2 class="section-h2" style="margin-bottom:18px;">Join the waitlist for paid signals.</h2>
+      <p class="section-p" style="margin:0 auto 0;max-width:480px;">Free tier stays free forever. Paid tier unlocks higher win-rate pairs and auto-execution. Be first in line.</p>
+      <form class="waitlist-form" id="waitlist-form" onsubmit="return handleWaitlist(event)">
+        <input class="waitlist-input" type="email" placeholder="your@email.com" required id="waitlist-email"/>
+        <button class="waitlist-btn" type="submit">Join Waitlist</button>
+      </form>
+      <p class="waitlist-fine">No spam. Unsubscribe anytime.</p>
+    </div>
+  </div>
+
+
+
+  <footer>
+    <div class="footer-name">Quantile</div>
+    <div class="footer-links">
+      <a href="https://github.com/patdonohue07/Quantile" target="_blank">GitHub</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#results">Results</a>
+    </div>
+    <div class="footer-disc">Research only · Not financial advice</div>
+  </footer>
+
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas');
+  const gl = canvas.getContext('webgl');
+  if (!gl) return;
+  const vs = `attribute vec4 p; void main(){gl_Position=p;}`;
+  const fs = `
+    precision highp float;
+    uniform vec2 R; uniform float T;
+    const float s=5.; const vec4 lc=vec4(.23,.51,.96,1.);
+    const float mw=.008,xw=.07,ls=.08,la=.4,lf=.2,ws=.05,wf=.5,wa=.35,os=.1,of=.5,mn=.6,mx=1.8;
+    float rnd(float t){return(cos(t)+cos(t*1.3+1.3)+cos(t*1.4+1.4))/3.;}
+    float line(float p,float hw,float t){return smoothstep(hw,.0,abs(p-t));}
+    void main(){
+      vec2 uv=gl_FragCoord.xy/R;
+      vec2 sp=(gl_FragCoord.xy-R/2.)/R.x*2.*s;
+      float hf=1.-(cos(uv.x*6.28)*.5+.5);
+      float vf=1.-(cos(uv.y*6.28)*.5+.5);
+      sp.y+=rnd(sp.x*wf+T*ws)*wa*(.5+hf);
+      sp.x+=rnd(sp.y*wf+T*ws+2.)*wa*hf;
+      vec4 lines=vec4(0.);
+      for(int l=0;l<9;l++){
+        float nl=float(l)/9.;
+        float r=rnd(float(l)+sp.x*of+T*os)*.5+.5;
+        float hw=mix(mw,xw,r*hf)/2.;
+        float off=rnd(float(l)+sp.x*of+T*os*(1.+nl))*mix(mn,mx,hf);
+        float lp=rnd(sp.x*lf+T*ls)*hf*la+off;
+        float ln=line(lp,hw,sp.y)/2.+line(lp,hw*.15,sp.y);
+        lines+=ln*lc*r*.45;
+      }
+      vec4 bg=vec4(.015,.015,.04,1.)*(vf*.4+.6);
+      gl_FragColor=bg+lines*.6;
+    }`;
+  const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);return s;};
+  const prog=gl.createProgram();
+  gl.attachShader(prog,mk(gl.VERTEX_SHADER,vs));
+  gl.attachShader(prog,mk(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(prog);
+  const buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const pL=gl.getAttribLocation(prog,'p');
+  const rL=gl.getUniformLocation(prog,'R');
+  const tL=gl.getUniformLocation(prog,'T');
+  const resize=()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;gl.viewport(0,0,canvas.width,canvas.height);};
+  window.addEventListener('resize',resize);
+  resize();
+  let t0=Date.now();
+  const draw=()=>{gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(prog);gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.vertexAttribPointer(pL,2,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(pL);gl.uniform2f(rL,canvas.width,canvas.height);gl.uniform1f(tL,(Date.now()-t0)/1000);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);requestAnimationFrame(draw);};
+  draw();
+})();
+
+// Feature 1: Animated counting stats
+(function() {
+  var fired = false;
+  var strip = document.getElementById('stats-strip');
+  if (!strip) return;
+  var obs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !fired) {
+      fired = true;
+      obs.disconnect();
+      var els = strip.querySelectorAll('[data-count]');
+      els.forEach(function(el) {
+        var target = parseFloat(el.getAttribute('data-count'));
+        var suffix = el.getAttribute('data-suffix') || '';
+        var decimals = parseInt(el.getAttribute('data-decimals') || '0');
+        var duration = parseInt(el.getAttribute('data-duration') || '1200');
+        var start = performance.now();
+        function tick(now) {
+          var elapsed = now - start;
+          var progress = Math.min(elapsed / duration, 1);
+          var eased = 1 - Math.pow(1 - progress, 3);
+          var current = eased * target;
+          el.textContent = current.toFixed(decimals) + suffix;
+          if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+  }, { threshold: 0.3 });
+  obs.observe(strip);
+})();
+
+// Feature 4: Waitlist form handler
+function handleWaitlist(e) {
+  e.preventDefault();
+  var email = document.getElementById('waitlist-email').value;
+  window.location.href = 'mailto:pat@quantile.online?subject=Waitlist&body=' + encodeURIComponent('Email: ' + email);
+  return false;
+}
+</script>
+
+</body>
+</html>

@@ -1,141 +1,312 @@
+/**
+ * Quantile — /api/trade.js
+ * Vercel serverless handler invoked by cron.
+ *
+ * Fixes 7 things vs previously deployed version:
+ *   1. POSITION_SIZE = 10000 canonical
+ *   2. ET time-of-day guard (DST-safe, cron fires twice per action)
+ *   3. Rolling 3-year sk from Alpaca bars at runtime (no lookahead)
+ *   4. feed=sip (was iex)
+ *   5. Poll today's open bar with fallback
+ *   6. Idempotency guard (skip if positions already open)
+ *   7. action=reset endpoint for manual flattening
+ */
+
 const PAIRS = [
-  { lead: "V", target: "MA", beta: 0.647983, th: 75, lo: 25, sk: [-0.00615841,-4.495e-5,0.00228136,-0.00086102,0.00080227,-0.00269413,-0.00296063,-5.507e-5,-0.00409487,0.00319038,0.00651187,-0.00325114,-0.00099557,-0.00149667,0.00359609,-0.00168036,0.00091299,-0.00071511,0.00169017,0.00048608,0.00348685,0.01247656,-0.00201131,-0.01149043,-0.0001334,0.00115611,0.00046822,-0.00092474,-0.00610059,-0.00136135,0.00348965,-0.00303094,-0.00049983,-0.00071401,0.00039883,0.00212828,-0.00040926,0.00032842,-0.00428162,-0.0013423,-0.00574036,-0.00034746,0.00030048,-0.00106789,-0.00767999,-0.00631846,-0.00536395,-0.0090869,0.0057266,-0.00538521,-0.0075314,5.671e-5,0.00178572,0.00437719,0.00045013,-0.00513825,0.00448051,-0.00071104,0.00162189,-0.00052294,0.00196661,-8.024e-5,0.00150338,-0.00172715,-0.01344592,-0.01431816,-0.02041012,0.01110228,0.00370738,-0.00245436,0.00084707,0.00124861,0.00340604,-0.00074633,0.00234528,-0.00143739,0.00373118,0.00483043,-0.00164616,-0.00282962,0.00170599,0.00311503,-0.01935007,-0.00206202,0.00326004,0.0001042,-0.00106668,0.00255132,0.0025757,0.00121708,0.0057763,0.0010344,-0.00039981,0.00024554,0.00376436,-0.003241,0.00538681,-0.00332007,-0.00050588,-0.00536723,0.00156409,7.741e-5,0.00176855,-0.00177574,-0.00098357,-0.00052055,-0.00012618,0.00301647,0.00337345,0.00035391,0.00057255,-0.00274575,-0.00145615,-0.00857309,0.00816014,-0.00109737,-0.00159918,-0.0020362,-0.00127581,0.00488506,-0.00157755,0.00062909,0.00047845,-0.00044409,-0.00044313,-0.00053086,0.00189856,-0.00146057,0.00073125,0.00109759,-0.00321879,-0.0052149,-0.00192889,-0.00689567,-0.00164735,0.00324861,-0.00047801,-0.00083901,-0.00089935,0.00526949,-0.00121909,-0.0009042,-0.00087927,0.00031149,0.00460652,-0.01660625,-0.00098015,0.00183288,0.00023877,-0.00079879,0.00060241,0.00186658,-0.00091563,-0.00212406,-0.00284218,0.00162077,0.00082342,-0.00218547,-0.00082451,0.0023314,0.00095574,0.00075161,4.83e-6,-0.00023066,-0.00090032,0.00053805,4.7e-5,-0.00738075,-0.00204153,-0.00012583,0.00129608,-0.0007894,0.0015982,-0.00193681,0.00012643,-0.00408802,0.00088613,-0.00278566,-0.00169018,-0.00148579,0.00387087,-0.0040725,-0.00039633,-0.00021992,0.0033661,0.0076439,-0.00096791,0.00165789,0.00043131,-0.00345414,0.00147272,0.00184778,0.00203175,0.00220507,-0.00144274,-0.00177783,-0.00040067,-0.00294556,0.00413036,-0.00198461,0.00399069,-0.00081414,0.00105978,0.0028671,-0.00097008,0.00255609,0.00234795,0.00136977,0.00232902,0.00628303,-0.00294429,0.00309916,-0.0021517,-0.00079259,-0.00059868,-0.00129147,0.00151093,0.00189423,-0.00191494,0.00203083,-0.00111348,0.00313379,0.00013371,0.00035857,-0.00357977,-0.00074756,0.0001965,-0.00561212,-0.0023834,-0.00488381,-0.00108351,-0.00073463,-0.00170403,0.00120482,-0.00010859,-0.00553106,0.0013705,-0.00022218,0.01638929,0.00383194,-0.0010763,-0.0043532,0.00184731,0.0027453,0.00010411,0.00214748,-0.00046946,-0.00101193,-0.00044805,0.00138021,0.00032057,0.00104987] },
-  { lead: "PG", target: "CL", beta: 0.7145, th: 90, lo: 10, sk: [-0.00128691,0.00124734,0.00042272,-0.00171976,0.00015606,0.00254876,0.00537703,0.0024201,0.0023199,0.00162903,0.00134288,0.00317909,0.00205796,-6.776e-5,0.00047233,-0.02121769,-0.00262514,-0.03078388,0.0002683,0.00513284,0.00767981,-0.00131736,0.00225135,-0.00079647,-0.00175066,0.00018841,0.00542645,0.00644658,0.00327352,0.00267778,0.00753589,8.431e-5,-0.00223684,-0.00677248,-0.00041435,0.00193687,0.00023644,-0.00105855,3.8e-7,-0.00060176,0.00061261,0.00026946,0.00287205,0.00291366,-0.0042786,0.00123517,-0.00206808,0.00116267,0.00054982,0.00247216,0.00179199,-0.00189417,0.00354918,-0.0052908,0.00228802,0.00123888,-0.00341739,-0.0026189,0.00388796,0.00491776,0.0061019,-0.00140889,-0.00299231,-0.00112011,-0.0013996,-0.00066878,-0.00037126,-0.00153058,0.00230406,0.00206699,-0.00021949,-0.0020122,0.0127673,0.00039728,0.00178866,-0.00860685,0.0008022,-0.00245386,0.00358091,-0.00231381,0.01189034,0.00314437,0.0007828,-0.00108114,-0.00055123,-0.00227074,0.00207726,0.00291464,0.00027577,0.00115336,0.00070474,0.00395617,0.00047047,-0.00050116,0.00082379,-0.00302265,-0.00284047,0.00108505,-0.00058529,0.00050331,-0.00061739,0.00417279,-0.00462564,0.00396149,0.00195474,-0.00108234,0.00162811,0.0023612,-0.00350024,0.01150847,-0.00184167,-5.623e-5,0.02080391,0.00018132,0.00118563,0.0026806,0.00162083,0.00031484,0.00097878,0.00230064,-0.0013363,0.00045687,0.00274437,-4.898e-5,0.00126182,0.00118023,-0.00182438,-0.0022076,0.00285723,-0.00050514,-0.00310546,-0.00440571,-0.00030533,-0.00494644,-0.00260674,-0.00123178,-0.00093759,-0.00201751,0.00250059,-0.0047926,0.00364524,-0.00069182,-6.645e-5,0.00254136,-0.0048532,9.12e-6,0.00050046,0.00267211,-0.00493711,0.00085071,-3.118e-5,0.00044658,-0.00104442,0.00140331,-0.001289,0.00022543,0.00055089,-0.00246875,-1.7e-7,-0.00158747,0.00226879,-0.00093135,4.118e-5,0.0020217,0.00288304,-0.00950374,-0.00099271,0.00036366,-0.00755304,-0.00275659,0.00304758,-0.01225304,0.00036455,0.0053317,0.00770377,0.02596344,-9.4e-6,-0.00588282,0.00137881,0.00197629,-0.00405974,-0.00086057,0.02529505,0.00013936,0.00109364,-2.364e-5,-0.00360356,0.00374969,0.00384033,-0.00125249,0.00082563,0.00899634,0.00109476,-0.00642521,-0.0008462,0.00367935,-0.00294066,5.148e-5,0.00119442,0.00448577,0.00033219,0.00046394,-0.00010869,-0.00186916,0.00220315,-0.00019386,-0.00265284,-0.00630835,0.00329877,-0.00227144,-0.00362534,-0.00254275,5.879e-5,0.00034807,0.0018888,0.00014645,-0.00120179,7.97e-6,-0.0064477,-0.00110763,-0.00467578,0.00141916,-0.00046519,8.806e-5,0.0013331,-0.00068848] },
-  { lead: "LOW", target: "HD", beta: 0.9648, th: 70, lo: 30, sk: [-0.00146997,-0.00090795,-0.00329434,0.00197974,-0.00273915,0.00152279,0.00043252,0.00172132,-0.00268162,-0.00038193,-0.00637788,0.0132942,-0.00257343,-0.00170492,-0.0001955,0.00297546,0.00420735,-0.00065111,0.00471802,-0.00598263,0.00554334,-0.00037327,-0.00309169,-0.00172758,-0.00484311,-0.00189333,-0.00175857,-0.00227377,-0.00051021,-0.0018848,0.00344675,0.000103,-0.00108268,-0.00141706,-0.01935594,0.01178682,0.00364629,-0.0016501,-0.00861886,-0.00244659,0.00365277,0.00091222,-0.00846403,0.00086249,8.243e-5,0.00047668,-0.0007704,0.0009147,0.0028606,0.00259822,7.812e-5,0.0012012,-0.00219471,0.00794884,0.0001132,0.00263664,-0.0067103,0.00111721,-0.00687732,0.00394999,-0.00323358,0.00255237,0.00103081,0.00020828,0.00386473,-0.0015883,0.00420976,0.00367838,0.00175272,-0.00340202,0.00583911,-0.00256512,0.00013637,-0.00230497,-0.0009386,0.00049273,0.00135878,0.0026347,0.00090321,0.00064963,0.00033771,-0.01728168,-0.00074707,0.00627551,-0.00124992,0.00075238,-0.01017842,-0.00116638,0.00850059,-0.00057882,-0.00568457,0.00266349,-0.00264737,-0.00661904,-0.04284422,0.00103257,0.00324332,0.00108848,0.00421765,-0.00110173,-0.00025468,-0.0050486,-0.00112556,-0.00055363,-0.00317791,-0.00024429,0.00072124,0.00283001,-0.00019468,0.00213942,-0.00073282,0.00076486,-0.00250797,-0.00437634,-0.00386091,-0.00132505,0.00285359,0.00765448,0.00133765,-0.00236345,-0.00685265,0.00439299,0.00444936,-0.00429249,-0.00126711,0.0050103,-0.0002971,-0.00574077,9.99e-5,-0.00460897,-0.00136245,-0.00103365,-0.00386464,-0.00710861,-0.00237862,0.00755875,-0.00179883,0.00231558,6.604e-5,0.00154396,-0.00021558,-0.0027551,-0.00032889,-0.00167212,0.00121091,-0.00760358,0.00504829,0.00109615,-0.0031888,-0.00130267,0.00152098,-0.00501574,-0.00217977,6.861e-5,-0.00114619,0.00190895,-0.00764895,-0.0051405,0.00061638,-0.00074136,0.00152896,-0.01320257,-0.00133865,-0.0056478,0.00159641,0.00491725,-0.00299555,-0.00099598,-0.00209258,0.00430896,-0.00023658,0.0021564,0.00173205,0.01036883,0.00158622,-0.00225462,-0.00300491,0.00127948,0.00157507,-0.00528448,0.00545114,-0.00253351,0.00562417,0.00183264,0.001771,0.00314866,0.00148606,-0.00088606,0.00232755,0.00227791,-0.00522252,0.00380462,-0.00076552,-0.00051127,-0.00222927,0.00250332,-0.00287344,-0.00536352,-0.00177606,0.00193829,0.00059754,-0.00504389,-0.02758376,0.00572244,-0.01295632,0.0001924,-0.00118967,-0.00046405,-0.00625868,-0.0078379,-0.00508537,0.00298351,0.00057678,-0.00333898,0.01139318,-0.00054688,-0.00915931,0.00399532,0.00218967,0.00116481,-0.00183145,0.01733203,-0.00209282,-0.00266379,0.00482145,-0.00116952,0.00059634,0.01099854,-0.00079988,0.002681,0.00048144,-0.00187959,0.00076905,0.00034738,-0.00109521,-0.00098925,-0.00645501,-0.00154396,0.00327715,-0.00675924,-0.00111862,0.00360806,-0.00359747,-0.00278796,0.0022745,0.00100599,-0.0011467,-0.00115655,0.00042987,0.00403447,0.00499421,0.00161982,8.782e-5,0.00300536,0.00144032,-0.00154883] },
-  { lead: "MS", target: "GS", beta: 0.9726, th: 80, lo: 20, sk: [0.00029571,-0.00059366,0.00177545,-0.00127548,0.00132702,0.00130466,0.00113792,0.00057077,-0.0056939,0.00322798,-0.02737444,0.00425397,-0.01343187,-0.00208902,0.00185675,0.00404099,-0.00046804,0.0054879,-0.0016498,0.00116411,0.00089555,0.00534781,0.00014877,0.00742756,0.00112333,0.00294956,0.00064636,0.00073919,0.00035178,-0.0029459,0.0024573,0.00317836,0.00143105,-0.00098822,0.00087923,0.00202925,-0.00099486,0.00233737,-0.00526772,-0.00109496,-6.766e-5,0.001916,0.00969534,-0.00203014,-0.00246759,-0.00314036,0.03133516,0.00148568,0.00190636,-0.00508719,0.00185673,-0.00097887,-0.00145263,-0.00234846,-0.00182683,0.00074107,-0.00020453,-0.00170552,-0.00135803,0.00070825,0.00099607,-0.00191872,-0.00552306,0.00569579,0.00060938,-0.0045488,0.00419974,0.00159049,-0.0025538,-0.00105309,-0.00345892,0.00321557,0.00703339,-0.00427123,-0.00283828,-2.165e-5,0.00338541,-0.00164135,-0.00031284,-0.00026734,-0.00375075,-0.00495965,-0.00172784,-0.00018,-0.00013224,-0.00193897,-0.00602818,-3.652e-5,-0.0005099,0.0021465,0.00068413,-0.00045095,0.00259024,-0.00156798,-0.00123713,-0.00163731,0.00137619,-0.00261901,0.00341778,0.00024564,-0.00115777,0.00042929,0.00060458,0.00187399,-0.00651925,0.00517447,0.00567254,-0.00122959,0.00108707,0.00257495,-0.00342569,5.925e-5,-0.00395519,0.00363835,0.00015063,-0.00184488,0.00391439,0.00342784,0.00382912,0.00127467,0.00271848,-0.00339056,0.00282019,0.00404343,-0.00254075,-0.00355176,-0.00255148,-0.00272952,0.0038906,0.00324155,0.00082521,0.00076401,-0.00028253,0.01497862,-0.00182431,0.01640598,-0.00636379,0.00086562,-0.00335018,0.00241298,0.00032634,-0.00113982,-0.00360167,0.00024469,-0.00144765,-0.00241071,-0.00071297,-0.0034171,-0.04159044,0.00085055,0.00128081,0.00131534,0.00291087,0.01275976,-0.00128084,-0.00051661,-0.00345983,-0.00231145,0.001903,-0.00089201,0.00017442,0.00044665,0.00522996,-0.00252377,-0.00340118,0.00142353,-0.00148508,0.00042194,-0.00186146,-0.00452238,-0.00436096,0.00111438,-0.00538901,-0.00257101,0.00242531,-0.00073379,0.00013256,0.00234814,0.00816381,0.00114652,0.00152199,0.00046693,-0.00145354,-0.0189905,0.00141954,0.00525864,0.00204682,0.00256808,-0.00015506,0.00195032,-0.00309761,7.225e-5,-0.00043791,-0.00132197,0.00103126,0.0010015,-0.01071724,-0.01470519,0.00564023,-0.00347241,-0.00297776,-0.00062059,0.00104972,0.00711068,-0.00063737,0.00029364,-0.00319529,0.00601641,0.0028956,-0.00223967,-0.00038354,-0.01217777,-0.03463572,-0.00415662,-0.0004419,0.00196323,0.0100336,0.00055327,-0.00296818,-0.00277736,-0.00100329,0.00264924,-0.00252893,0.00517595,-0.00182136,-0.00444977,0.00213415,-0.01035227,-0.00171532,-0.00347466,0.00504637,0.00426648,-0.00144976,0.00093322,-0.00430326,0.00028667,-0.00115694,-0.00453628,-0.00033499,0.00608296,0.00083487,-0.00062115,0.00020831,0.00095672,0.00302591,-0.00145002,0.00132504,0.00195801,0.00053822,-0.00070178,0.00121064,-0.00144344,-0.00770312,-0.00365581,-0.00012656,0.00134539,-0.00031771,0.00174155,0.00119326,0.00066072,-0.00154967,0.00018661,-0.00406989,-0.00288721,0.005042,0.00017886,-0.00065723,-0.00143003,0.00342657,7.3e-7,-0.00073145,-0.00285884,0.00161322,-0.00268776,-0.00135673,-0.00086953,-0.00763832,0.00083628,-0.00115546,0.0018511,0.00184339,-0.00454914] },
-  { lead: "BAC", target: "JPM", beta: 0.79948, th: 85, lo: 15, sk: [0.00610608,-0.00392379,0.02254339,-0.02079042,0.00513592,-0.01381332,0.00143133,0.00079419,0.02050675,-0.01057832,-0.0166792,-0.02389852,-0.01025566,-0.01438948,0.00841537,0.00581541,-0.0009091,0.00595231,0.01509065,-0.02379181,-0.02345244,-0.01222708,0.01737422,-0.01654048,-0.00720407,0.00117483,-0.00241193,0.00158318,0.01469353,-0.01434915,0.01431504,-0.00578069,0.00178747,-0.02622679,0.00429259,0.00402437,-0.0079694,0.00494396,0.00256456,0.00847896,0.01462484,0.00099074,-0.01786139,0.01123552,0.01038343,0.00252944,0.00818425,0.0107952,0.00431477,0.01724886,0.00709117,0.01030068,0.00878479,0.00115512,0.02052726,0.02070719,0.00756082,-0.00072975,-0.01979788,-0.01050129,0.01310036,-0.00549889,-0.01402879,0.00677064,0.01842544,-0.00115523,-0.01444622,0.0080985,0.00902263,-0.00308601,0.00862826,0.00590111,0.01393782,0.01747738,-0.00370906,0.01262577,0.01357259,-0.01919053,-0.02107633,-0.01042697,-0.00649725,-0.00288105,-0.01442807,0.00984653,-0.01579951,-0.00198195,-0.00165429,0.00370874,-0.00307322,0.01161934,0.00999379,-0.01191474,-0.01525333,-0.00181147,0.00396836,-0.00958615,-0.00826981,0.00649968,0.02466899,-0.02094549,-0.00707191,-0.00703702,-0.00030203,-0.01158421,0.00058454,-0.02683082,-0.03164582,-0.0056434,-0.01493612,-0.00192207,-0.00817874,0.00304569,-0.01140654,0.00851282,0.03859378,-0.00671215,-0.00239232,0.00159257,-0.01606407,0.0276051,0.02511935,-0.0306071,-0.00179676,-0.00766994,-0.00655122,0.01512571,-0.01331932,0.01550528,0.00947856,0.00459153,-0.01004378,-0.00378847,-0.01284686,-0.00541759,-0.01640367,0.02000336,0.00577656,-0.0023389,-0.02629286,-0.02883273,0.01088855,-0.00128076,-2.8e-7,0.00501564,-0.01167286,0.0055929,-0.00483949,-0.00114709,0.00344638,-0.00833979,-0.00969724,0.00093355,0.00235573,0.00364664,-0.00506084,-0.00579102,0.00625956,-0.00716638,0.00363744,-0.00583789,0.00339326,0.01088257,0.00486886,-0.00698547,-0.00523462,0.01004418,-0.00339555,0.00582752,-0.00546006,-0.00309174,0.00581257,-0.00619502,0.00491732,-0.00348916,0.00436965,-0.00302615,0.00637985,0.00488372,-0.00557581,0.00261547,-0.00516923] },
+  { lead: "V",   target: "MA",  beta: 0.647983, th: 75, lo: 25 },
+  { lead: "LOW", target: "HD",  beta: 0.9648,   th: 70, lo: 30 },
+  { lead: "PG",  target: "CL",  beta: 0.7145,   th: 90, lo: 10 },
+  { lead: "MS",  target: "GS",  beta: 0.9726,   th: 80, lo: 20 },
+  { lead: "BAC", target: "JPM", beta: 0.79948,  th: 85, lo: 15 },
 ];
 
-function calcSig(pair, lpc, lo, tpc, to) {
+const POSITION_SIZE = 10000;
+const SK_LOOKBACK_DAYS = 365 * 3;
+const SK_MIN_SAMPLES = 250;
+
+const ALPACA_DATA = "https://data.alpaca.markets/v2";
+const ALPACA_PAPER = "https://paper-api.alpaca.markets/v2";
+
+function etNow() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return new Date(
+    `${obj.year}-${obj.month}-${obj.day}T${obj.hour}:${obj.minute}:${obj.second}`
+  );
+}
+
+function etDateStr(d) {
+  d = d || etNow();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function etMinutesSinceMidnight(d) {
+  d = d || etNow();
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function isTradingDay(d) {
+  d = d || etNow();
+  const day = d.getDay();
+  return day >= 1 && day <= 5;
+}
+
+async function alpacaGet(url, headers) {
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Alpaca ${res.status}: ${txt.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+async function getDailyBars(ticker, days, headers) {
+  const now = etNow();
+  const end = new Date(now);
+  end.setDate(end.getDate() + 1);
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+  const s = etDateStr(start), e = etDateStr(end);
+  const url = `${ALPACA_DATA}/stocks/${ticker}/bars?timeframe=1Day&start=${s}&end=${e}&adjustment=raw&feed=sip&limit=10000`;
+  const data = await alpacaGet(url, headers);
+  return data.bars || [];
+}
+
+async function pollTodaysOpen(ticker, todayET, headers, maxAttempts) {
+  maxAttempts = maxAttempts || 6;
+  for (let i = 0; i < maxAttempts; i++) {
+    const bars = await getDailyBars(ticker, 3, headers);
+    const today = bars.find(b => b.t.slice(0, 10) === todayET);
+    if (today && today.o) return { open: today.o, source: "daily-bar" };
+    if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 10000));
+  }
+  const url = `${ALPACA_DATA}/stocks/${ticker}/trades/latest?feed=sip`;
+  const data = await alpacaGet(url, headers);
+  if (data.trade && data.trade.p) {
+    return { open: data.trade.p, source: "latest-trade" };
+  }
+  throw new Error(`Could not obtain today's open for ${ticker}`);
+}
+
+function buildShockSeries(leadBars, targetBars, beta) {
+  const leadByDate   = new Map(leadBars.map(b => [b.t.slice(0, 10), b]));
+  const targetByDate = new Map(targetBars.map(b => [b.t.slice(0, 10), b]));
+  const commonDates = [...leadByDate.keys()]
+    .filter(d => targetByDate.has(d))
+    .sort();
+  const shocks = [];
+  for (let i = 1; i < commonDates.length; i++) {
+    const prev = commonDates[i - 1];
+    const today = commonDates[i];
+    const lp = leadByDate.get(prev).c;
+    const lo = leadByDate.get(today).o;
+    const tp = targetByDate.get(prev).c;
+    const to = targetByDate.get(today).o;
+    if (!lp || !lo || !tp || !to) continue;
+    const ol = lo / lp - 1;
+    const ot = to / tp - 1;
+    shocks.push({ date: today, shock: ol - beta * ot });
+  }
+  return shocks;
+}
+
+function percentileRank(distribution, value) {
+  let c = 0;
+  for (const x of distribution) if (x <= value) c++;
+  return (c / distribution.length) * 100;
+}
+
+function calcSignal(pair, lpc, lo, tpc, to, skDistribution) {
   const ol = lo / lpc - 1;
   const ot = to / tpc - 1;
   const shock = ol - pair.beta * ot;
-  const count = pair.sk.filter(x => x <= shock).length;
-  const p = (count / pair.sk.length) * 100;
-  const dir = p >= pair.th ? "UP" : p <= pair.lo ? "DN" : null;
-  return { p, dir, ol, ot };
-}
-
-async function getPrices(key, secret) {
-  const TICKERS = ["V","MA","PG","CL","LOW","HD","MS","GS","BAC","JPM"];
-  const now = new Date();
-  const etNow = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const todayET = etNow.toISOString().slice(0,10);
-  const startDate = new Date(etNow); startDate.setDate(startDate.getDate() - 10);
-  const startStr = startDate.toISOString().slice(0,10);
-  const endDate = new Date(etNow); endDate.setDate(endDate.getDate() + 1);
-  const endStr = endDate.toISOString().slice(0,10);
-  const headers = { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret };
-  const results = {};
-  await Promise.all(TICKERS.map(async (ticker) => {
-    try {
-      const url = `https://data.alpaca.markets/v2/stocks/${ticker}/bars?timeframe=1Day&start=${startStr}&end=${endStr}&adjustment=raw&feed=iex`;
-      const res = await fetch(url, { headers });
-      const data = await res.json();
-      const bars = data.bars;
-      if (!bars || bars.length === 0) throw new Error(`No bars for ${ticker}`);
-      const todayBar = bars.find(b => b.t.slice(0,10) === todayET);
-      const prevBars = bars.filter(b => b.t.slice(0,10) < todayET);
-      const yesterdayBar = prevBars[prevBars.length - 1];
-      if (!yesterdayBar) throw new Error(`No prev bar for ${ticker}`);
-      results[ticker] = { prev_close: yesterdayBar.c, open: todayBar ? todayBar.o : null };
-    } catch (e) {
-      results[ticker] = null;
-    }
-  }));
-  return results;
+  const p = percentileRank(skDistribution, shock);
+  let dir = null;
+  if (p >= pair.th) dir = "UP";
+  else if (p <= pair.lo) dir = "DN";
+  return { p, dir, ol, ot, shock };
 }
 
 async function placeOrder(symbol, qty, side, headers) {
-  const res = await fetch("https://paper-api.alpaca.markets/v2/orders", {
+  const res = await fetch(`${ALPACA_PAPER}/orders`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ symbol, qty: String(qty), side, type: "market", time_in_force: "day" }),
+    body: JSON.stringify({
+      symbol, qty: String(qty), side,
+      type: "market", time_in_force: "day",
+    }),
   });
   return res.json();
 }
 
 async function closeAllPositions(headers) {
-  const res = await fetch("https://paper-api.alpaca.markets/v2/positions?cancel_orders=true", {
-    method: "DELETE",
-    headers,
+  const res = await fetch(`${ALPACA_PAPER}/positions?cancel_orders=true`, {
+    method: "DELETE", headers,
   });
   return res.json();
+}
+
+async function listOpenPositions(headers) {
+  const res = await fetch(`${ALPACA_PAPER}/positions`, { headers });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 module.exports = async function handler(req, res) {
   const key = process.env.ALPACA_API_KEY;
   const secret = process.env.ALPACA_SECRET_KEY;
-  if (!key || !secret) return res.status(500).json({ error: "Missing Alpaca credentials" });
-
+  if (!key || !secret) {
+    return res.status(500).json({ error: "Missing Alpaca credentials" });
+  }
   const headers = {
     "APCA-API-KEY-ID": key,
     "APCA-API-SECRET-KEY": secret,
   };
 
-  const { action } = req.query;
+  const now = etNow();
+  const todayET = etDateStr(now);
+  const etMins = etMinutesSinceMidnight(now);
+  const action = req.query && req.query.action;
+
+  if (action === "reset") {
+    const before = await listOpenPositions(headers);
+    const result = await closeAllPositions(headers);
+    return res.status(200).json({
+      reset: true,
+      positions_before: before.map(p => ({ symbol: p.symbol, qty: p.qty, side: p.side })),
+      close_result: result,
+      et_time: now.toISOString(),
+    });
+  }
 
   if (action === "close") {
+    if (!isTradingDay(now)) {
+      return res.status(200).json({ skipped: "not a trading day", et_time: now.toISOString() });
+    }
+    if (etMins < 15 * 60 + 55 || etMins > 16 * 60 + 10) {
+      return res.status(200).json({ skipped: "outside close window", et_time: now.toISOString() });
+    }
     const result = await closeAllPositions(headers);
-    return res.status(200).json({ closed: result });
+    return res.status(200).json({ closed: result, et_time: now.toISOString() });
   }
 
-  // Clear all existing positions before placing new trades each morning
-  try {
-    await fetch("https://paper-api.alpaca.markets/v2/positions?cancel_orders=true", {
-      method: "DELETE",
-      headers: { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret },
+  if (!isTradingDay(now)) {
+    return res.status(200).json({ skipped: "not a trading day", et_time: now.toISOString() });
+  }
+  if (etMins < 9 * 60 + 30 || etMins > 9 * 60 + 40) {
+    return res.status(200).json({
+      skipped: "outside open window (9:30-9:40 ET)",
+      et_time: now.toISOString(),
+      et_minutes: etMins,
     });
-  } catch (e) {}
+  }
 
-  // Wait for Alpaca to process the clear before placing new orders
-  await new Promise(r => setTimeout(r, 500));
+  const existing = await listOpenPositions(headers);
+  if (existing.length > 0) {
+    return res.status(200).json({
+      skipped: "positions already open (today's open has already run)",
+      existing_positions: existing.map(p => ({ symbol: p.symbol, qty: p.qty, side: p.side })),
+      et_time: now.toISOString(),
+    });
+  }
 
-  const prices = await getPrices(key, secret);
   const results = [];
-  for (const pair of PAIRS) {
+  const pairWork = PAIRS.map(async (pair) => {
     try {
-      const leadPrices = prices[pair.lead];
-      const targetPrices = prices[pair.target];
-      if (!leadPrices || !targetPrices) {
-        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "price fetch failed" });
-        continue;
+      const [leadBars, targetBars] = await Promise.all([
+        getDailyBars(pair.lead,   SK_LOOKBACK_DAYS + 10, headers),
+        getDailyBars(pair.target, SK_LOOKBACK_DAYS + 10, headers),
+      ]);
+      if (leadBars.length < 2 || targetBars.length < 2) {
+        return { pair: `${pair.lead}/${pair.target}`, error: "insufficient bars" };
       }
-      const lpc = leadPrices.prev_close;
-      const lo = leadPrices.open;
-      const tpc = targetPrices.prev_close;
-      const to = targetPrices.open;
-      if (!lo || !to || !lpc || !tpc) {
-        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "null price — market may not be open" });
-        continue;
+
+      const leadPrev   = [...leadBars  ].reverse().find(b => b.t.slice(0,10) < todayET);
+      const targetPrev = [...targetBars].reverse().find(b => b.t.slice(0,10) < todayET);
+      if (!leadPrev || !targetPrev) {
+        return { pair: `${pair.lead}/${pair.target}`, error: "no prev close" };
       }
-      const sig = calcSig(pair, lpc, lo, tpc, to);
+      const lpc = leadPrev.c;
+      const tpc = targetPrev.c;
+
+      const [leadOpenResult, targetOpenResult] = await Promise.all([
+        pollTodaysOpen(pair.lead,   todayET, headers),
+        pollTodaysOpen(pair.target, todayET, headers),
+      ]);
+      const lo = leadOpenResult.open;
+      const to = targetOpenResult.open;
+      if (!lo || !to) {
+        return { pair: `${pair.lead}/${pair.target}`, error: "no today open" };
+      }
+
+      const windowStart = (() => {
+        const d = new Date(todayET);
+        d.setFullYear(d.getFullYear() - 3);
+        return d.toISOString().slice(0, 10);
+      })();
+      const allShocks = buildShockSeries(leadBars, targetBars, pair.beta);
+      const sk = allShocks
+        .filter(s => s.date >= windowStart && s.date < todayET)
+        .map(s => s.shock);
+
+      if (sk.length < SK_MIN_SAMPLES) {
+        return {
+          pair: `${pair.lead}/${pair.target}`,
+          error: `sk has only ${sk.length} samples (need ${SK_MIN_SAMPLES})`,
+        };
+      }
+
+      const sig = calcSignal(pair, lpc, lo, tpc, to, sk);
+      const base = {
+        pair: `${pair.lead}/${pair.target}`,
+        lpc, lo, tpc, to,
+        sk_samples: sk.length,
+        percentile: Number(sig.p.toFixed(2)),
+        shock: Number(sig.shock.toFixed(6)),
+      };
+
       if (!sig.dir) {
-        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", percentile: sig.p.toFixed(1) });
-        continue;
+        return { ...base, signal: "none" };
       }
-      const leadQty = Math.floor(10000 / lo);
-      const targetQty = Math.floor(10000 / to);
+
+      const leadQty   = Math.floor(POSITION_SIZE / lo);
+      const targetQty = Math.floor(POSITION_SIZE / to);
       if (leadQty === 0 || targetQty === 0) {
-        results.push({ pair: `${pair.lead}/${pair.target}`, signal: "none", error: "qty computed as 0" });
-        continue;
+        return { ...base, signal: "none", error: "qty computed as 0 (price too high)" };
       }
-      const leadSide = sig.dir === "UP" ? "sell" : "buy";
-      const targetSide = sig.dir === "UP" ? "buy" : "sell";
+
+      const leadSide   = sig.dir === "UP" ? "sell" : "buy";
+      const targetSide = sig.dir === "UP" ? "buy"  : "sell";
+
       const [leadOrder, targetOrder] = await Promise.all([
-        placeOrder(pair.lead, leadQty, leadSide, headers),
+        placeOrder(pair.lead,   leadQty,   leadSide,   headers),
         placeOrder(pair.target, targetQty, targetSide, headers),
       ]);
-      results.push({
-        pair: `${pair.lead}/${pair.target}`,
+
+      return {
+        ...base,
         signal: sig.dir,
-        percentile: sig.p.toFixed(1),
-        leadOrder: leadOrder.id,
-        targetOrder: targetOrder.id,
-      });
+        leadQty, targetQty,
+        leadOrderId:   (leadOrder && leadOrder.id)   || (leadOrder && leadOrder.message)   || "unknown",
+        targetOrderId: (targetOrder && targetOrder.id) || (targetOrder && targetOrder.message) || "unknown",
+      };
     } catch (err) {
-      results.push({ pair: `${pair.lead}/${pair.target}`, error: err.message });
+      return { pair: `${pair.lead}/${pair.target}`, error: err.message };
     }
-  }
-  return res.status(200).json({ trades: results, timestamp: new Date().toISOString() });
+  });
+
+  const settled = await Promise.all(pairWork);
+  for (const r of settled) results.push(r);
+
+  return res.status(200).json({
+    et_time: now.toISOString(),
+    today_et: todayET,
+    trades: results,
+  });
 };
