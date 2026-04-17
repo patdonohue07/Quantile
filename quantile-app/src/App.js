@@ -368,12 +368,13 @@ const PAIRS = [
 ];
 
 // ── SIGNAL CALC ────────────────────────────────────────────────────────────────
-function calcSig(pair, lpc, lo, tpc, to) {
+function calcSig(pair, lpc, lo, tpc, to, liveSk) {
   const ol = lo / lpc - 1;
   const ot = to / tpc - 1;
   const shock = ol - pair.beta * ot;
-  const count = pair.sk.filter((x) => x <= shock).length;
-  const p = (count / pair.sk.length) * 100;
+  const skArr = liveSk || pair.sk;
+  const count = skArr.filter((x) => x <= shock).length;
+  const p = (count / skArr.length) * 100;
   const dir = p >= pair.th ? "UP" : p <= pair.lo ? "DN" : null;
   return { ol, ot, shock, p, dir };
 }
@@ -688,7 +689,7 @@ function PairAccordion({ pair, open, onToggle, onLogTrade, liveData }) {
     if (!isLive) setV((p) => ({ ...p, [k]: val }));
   };
   const filled = +v.lpc && +v.lo && +v.tpc && +v.to;
-  const result = filled ? calcSig(pair, +v.lpc, +v.lo, +v.tpc, +v.to) : null;
+  const result = filled ? calcSig(pair, +v.lpc, +v.lo, +v.tpc, +v.to, livePrices?.sk?.[pair.lead+"/"+pair.target]) : null;
   const hasSignal = !!result?.dir;
   const isUp = result?.dir === "UP";
   const sc = isUp ? C.green : hasSignal ? C.red : null;
@@ -2157,6 +2158,8 @@ export default function Quantile() {
           ld.lead_open,
           ld.target_prev_close,
           ld.target_open
+        ,
+          livePrices?.sk?.[p.lead+"/"+p.target]
         );
         return c + (r.dir ? 1 : 0);
       }, 0)
