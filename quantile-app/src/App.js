@@ -2160,7 +2160,7 @@ export default function Quantile() {
           ld.target_prev_close,
           ld.target_open
         ,
-          livePrices?.sk?.[p.lead+"/"+p.target]
+          livePrices?.__sk?.[p.lead+"/"+p.target]
         );
         return c + (r.dir ? 1 : 0);
       }, 0)
