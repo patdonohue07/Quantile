@@ -217,24 +217,25 @@ module.exports = async function handler(req, res) {
   }
 
   const results = [];
-  const pairWork = PAIRS.map(async (pair) => {
+  for (const pair of PAIRS) {
+    await new Promise(r => setTimeout(r, 500));
     try {
       const [leadBars, targetBars] = await Promise.all([
         getDailyBars(pair.lead,   SK_LOOKBACK_DAYS + 10, headers),
         getDailyBars(pair.target, SK_LOOKBACK_DAYS + 10, headers),
       ]);
       if (leadBars.length < 2 || targetBars.length < 2) {
-        return { pair: `${pair.lead}/${pair.target}`, error: "insufficient bars" };
+        results.push({ pair: `${pair.lead}/${pair.target}`, error: "insufficient bars" });
+        continue;
       }
-
       const leadPrev   = [...leadBars  ].reverse().find(b => b.t.slice(0,10) < todayET);
       const targetPrev = [...targetBars].reverse().find(b => b.t.slice(0,10) < todayET);
       if (!leadPrev || !targetPrev) {
-        return { pair: `${pair.lead}/${pair.target}`, error: "no prev close" };
+        results.push({ pair: `${pair.lead}/${pair.target}`, error: "no prev close" });
+        continue;
       }
       const lpc = leadPrev.c;
       const tpc = targetPrev.c;
-
       const [leadOpenResult, targetOpenResult] = await Promise.all([
         pollTodaysOpen(pair.lead,   todayET, headers),
         pollTodaysOpen(pair.target, todayET, headers),
@@ -242,9 +243,9 @@ module.exports = async function handler(req, res) {
       const lo = leadOpenResult.open;
       const to = targetOpenResult.open;
       if (!lo || !to) {
-        return { pair: `${pair.lead}/${pair.target}`, error: "no today open" };
+        results.push({ pair: `${pair.lead}/${pair.target}`, error: "no today open" });
+        continue;
       }
-
       const windowStart = (() => {
         const d = new Date(todayET);
         d.setFullYear(d.getFullYear() - 3);
@@ -254,14 +255,10 @@ module.exports = async function handler(req, res) {
       const sk = allShocks
         .filter(s => s.date >= windowStart && s.date < todayET)
         .map(s => s.shock);
-
       if (sk.length < SK_MIN_SAMPLES) {
-        return {
-          pair: `${pair.lead}/${pair.target}`,
-          error: `sk has only ${sk.length} samples (need ${SK_MIN_SAMPLES})`,
-        };
+        results.push({ pair: `${pair.lead}/${pair.target}`, error: `sk has only ${sk.length} samples (need ${SK_MIN_SAMPLES})` });
+        continue;
       }
-
       const sig = calcSignal(pair, lpc, lo, tpc, to, sk);
       const base = {
         pair: `${pair.lead}/${pair.target}`,
@@ -270,39 +267,33 @@ module.exports = async function handler(req, res) {
         percentile: Number(sig.p.toFixed(2)),
         shock: Number(sig.shock.toFixed(6)),
       };
-
       if (!sig.dir) {
-        return { ...base, signal: "none" };
+        results.push({ ...base, signal: "none" });
+        continue;
       }
-
       const leadQty   = Math.floor(POSITION_SIZE / lo);
       const targetQty = Math.floor(POSITION_SIZE / to);
       if (leadQty === 0 || targetQty === 0) {
-        return { ...base, signal: "none", error: "qty computed as 0 (price too high)" };
+        results.push({ ...base, signal: "none", error: "qty computed as 0 (price too high)" });
+        continue;
       }
-
       const leadSide   = sig.dir === "UP" ? "sell" : "buy";
       const targetSide = sig.dir === "UP" ? "buy"  : "sell";
-
       const [leadOrder, targetOrder] = await Promise.all([
         placeOrder(pair.lead,   leadQty,   leadSide,   headers),
         placeOrder(pair.target, targetQty, targetSide, headers),
       ]);
-
-      return {
+      results.push({
         ...base,
         signal: sig.dir,
         leadQty, targetQty,
         leadOrderId:   (leadOrder && leadOrder.id)   || (leadOrder && leadOrder.message)   || "unknown",
         targetOrderId: (targetOrder && targetOrder.id) || (targetOrder && targetOrder.message) || "unknown",
-      };
+      });
     } catch (err) {
-      return { pair: `${pair.lead}/${pair.target}`, error: err.message };
+      results.push({ pair: `${pair.lead}/${pair.target}`, error: err.message });
     }
-  });
-
-  const settled = await Promise.all(pairWork);
-  for (const r of settled) results.push(r);
+  }
 
   return res.status(200).json({
     et_time: now.toISOString(),
