@@ -78,12 +78,12 @@ async function getDailyBars(ticker, days, headers) {
 }
 
 async function pollTodaysOpen(ticker, todayET, headers, maxAttempts) {
-  maxAttempts = maxAttempts || 6;
+  maxAttempts = maxAttempts || 3;
   for (let i = 0; i < maxAttempts; i++) {
     const bars = await getDailyBars(ticker, 3, headers);
     const today = bars.find(b => b.t.slice(0, 10) === todayET);
     if (today && today.o) return { open: today.o, source: "daily-bar" };
-    if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 10000));
+    if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 3000));
   }
   const url = `${ALPACA_DATA}/stocks/${ticker}/trades/latest?feed=iex`;
   const data = await alpacaGet(url, headers);
